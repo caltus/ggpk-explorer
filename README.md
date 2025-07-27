@@ -1,6 +1,6 @@
 # GGPK Explorer v1.0.0
 
-A modern Windows Explorer-style file browser for Path of Exile's GGPK (Game Game Pack) files.
+A modern Windows Explorer-style file browser for Path of Exile's GGPK files.
 
 ## Screenshots
 
