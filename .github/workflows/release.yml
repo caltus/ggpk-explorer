@@ -1,0 +1,244 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Setup dependencies
+      run: |
+        # Create libs directory
+        New-Item -ItemType Directory -Force -Path "libs"
+        
+        # Clone and build LibGGPK3 libraries
+        Write-Host "Setting up LibGGPK3 libraries..."
+        git clone https://github.com/aianlinb/LibGGPK3.git tmp/LibGGPK3
+        cd tmp/LibGGPK3
+        
+        # Build all three libraries
+        dotnet build LibGGPK3/LibGGPK3.csproj -c Release
+        dotnet build LibBundle3/LibBundle3.csproj -c Release  
+        dotnet build LibBundledGGPK3/LibBundledGGPK3.csproj -c Release
+        
+        # Copy DLLs to libs folder
+        $releaseDir = Get-ChildItem -Path . -Recurse -Directory -Name "Release" | Select-Object -First 1
+        if ($releaseDir) {
+          $basePath = Split-Path $releaseDir -Parent
+          Copy-Item "$basePath/Release/LibGGPK3.dll" "../../libs/" -ErrorAction SilentlyContinue
+          Copy-Item "$basePath/Release/LibBundle3.dll" "../../libs/" -ErrorAction SilentlyContinue  
+          Copy-Item "$basePath/Release/LibBundledGGPK3.dll" "../../libs/" -ErrorAction SilentlyContinue
+        }
+        
+        # Try alternative paths
+        Get-ChildItem -Path . -Recurse -Name "LibGGPK3.dll" | ForEach-Object { 
+          Copy-Item $_ "../../libs/LibGGPK3.dll" -ErrorAction SilentlyContinue
+        }
+        Get-ChildItem -Path . -Recurse -Name "LibBundle3.dll" | ForEach-Object { 
+          Copy-Item $_ "../../libs/LibBundle3.dll" -ErrorAction SilentlyContinue
+        }
+        Get-ChildItem -Path . -Recurse -Name "LibBundledGGPK3.dll" | ForEach-Object { 
+          Copy-Item $_ "../../libs/LibBundledGGPK3.dll" -ErrorAction SilentlyContinue
+        }
+        
+        cd ../..
+        Remove-Item -Recurse -Force tmp/LibGGPK3
+        
+        # Clone and build SystemExtensions
+        Write-Host "Setting up SystemExtensions..."
+        git clone https://github.com/aianlinb/SystemExtensions.git tmp/SystemExtensions
+        cd tmp/SystemExtensions
+        dotnet build -c Release
+        
+        # Copy SystemExtensions.dll
+        Get-ChildItem -Path . -Recurse -Name "SystemExtensions.dll" | ForEach-Object { 
+          Copy-Item $_ "../../libs/SystemExtensions.dll" -ErrorAction SilentlyContinue
+        }
+        
+        cd ../..
+        Remove-Item -Recurse -Force tmp/SystemExtensions
+        
+        # Create placeholder for oo2core.dll with instructions
+        $oo2coreReadme = @"
+        IMPORTANT: oo2core.dll is required but cannot be distributed
+        
+        To complete the setup:
+        1. Copy oo2core_8_win64.dll from your Path of Exile installation
+        2. Rename it to oo2core.dll
+        3. Place it in this directory alongside the other DLLs
+        
+        Typical Path of Exile locations:
+        - Steam: C:\Program Files (x86)\Steam\steamapps\common\Path of Exile\
+        - Standalone: C:\Program Files (x86)\Grinding Gear Games\Path of Exile\
+        - Epic Games: C:\Program Files\Epic Games\PathOfExile\
+        "@
+        
+        Set-Content -Path "libs/oo2core_SETUP_REQUIRED.txt" -Value $oo2coreReadme
+        
+        # Verify what we have
+        Write-Host "Dependencies in libs folder:"
+        Get-ChildItem libs/ | ForEach-Object { Write-Host "  - $($_.Name)" }
+      shell: pwsh
+      
+    - name: Restore dependencies
+      run: dotnet restore src/GGPKExplorer/GGPKExplorer.csproj
+      
+    - name: Build application
+      run: |
+        dotnet publish src/GGPKExplorer/GGPKExplorer.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained false `
+          -p:PublishSingleFile=false `
+          -p:PublishReadyToRun=false `
+          -o publish/
+      shell: pwsh
+      
+    - name: Prepare release package
+      run: |
+        # Create release directory structure
+        New-Item -ItemType Directory -Force -Path "release/GGPKExplorer"
+        
+        # Copy published application files
+        Copy-Item -Recurse -Path "publish/*" -Destination "release/GGPKExplorer/"
+        
+        # Copy dependency DLLs to release
+        Copy-Item -Path "libs/*.dll" -Destination "release/GGPKExplorer/" -ErrorAction SilentlyContinue
+        Copy-Item -Path "libs/*.txt" -Destination "release/GGPKExplorer/" -ErrorAction SilentlyContinue
+        
+        # Copy documentation
+        Copy-Item -Path "README.md" -Destination "release/GGPKExplorer/"
+        Copy-Item -Path "libs/README.md" -Destination "release/GGPKExplorer/DEPENDENCIES.md" -ErrorAction SilentlyContinue
+        
+        # Create setup instructions
+        $setupInstructions = @"
+        GGPK Explorer v${{ github.ref_name || github.event.inputs.version }}
+        
+        SETUP INSTRUCTIONS:
+        
+        1. REQUIRED: Copy oo2core.dll from Path of Exile
+           - Find oo2core_8_win64.dll in your Path of Exile installation
+           - Rename it to oo2core.dll
+           - Place it in this folder alongside GGPKExplorer.exe
+           
+        2. Run GGPKExplorer.exe
+        
+        3. Open a GGPK file from your Path of Exile installation
+        
+        REQUIREMENTS:
+        - Windows 10 version 1809 or later / Windows 11
+        - .NET 8.0 Runtime (Windows Desktop)
+        - Path of Exile installation (for oo2core.dll)
+        
+        For detailed instructions, see README.md
+        "@
+        
+        Set-Content -Path "release/GGPKExplorer/SETUP.txt" -Value $setupInstructions
+        
+        # List contents for verification
+        Write-Host "Release package contents:"
+        Get-ChildItem -Recurse release/GGPKExplorer/ | ForEach-Object { 
+          Write-Host "  $($_.FullName.Replace((Get-Location).Path + '\release\GGPKExplorer\', ''))" 
+        }
+      shell: pwsh
+      
+    - name: Create release archive
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^refs/tags/', ''
+        if (-not $version -or $version -eq "") {
+          $version = "${{ github.event.inputs.version }}"
+        }
+        if (-not $version -or $version -eq "") {
+          $version = "v1.0.0"
+        }
+        
+        $archiveName = "GGPKExplorer-$version-win-x64-portable.zip"
+        
+        # Create zip archive
+        Compress-Archive -Path "release/GGPKExplorer/*" -DestinationPath $archiveName -CompressionLevel Optimal
+        
+        # Verify archive
+        Write-Host "Created archive: $archiveName"
+        Write-Host "Archive size: $((Get-Item $archiveName).Length / 1MB) MB"
+        
+        # Set output for next step
+        echo "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_ENV
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+      
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+      with:
+        tag_name: ${{ env.VERSION }}
+        name: GGPK Explorer ${{ env.VERSION }}
+        body: |
+          ## GGPK Explorer ${{ env.VERSION }}
+          
+          A modern Windows Explorer-style file browser for Path of Exile's GGPK files.
+          
+          ### 📦 Portable Release
+          
+          This is a portable release that requires minimal setup:
+          
+          1. **Download and extract** the zip file
+          2. **Copy oo2core.dll** from your Path of Exile installation (see SETUP.txt)
+          3. **Run GGPKExplorer.exe**
+          
+          ### ✅ What's Included
+          
+          - Complete GGPK Explorer application
+          - All required LibGGPK3 libraries
+          - Setup instructions and documentation
+          - Ready-to-run portable package
+          
+          ### ⚠️ Setup Required
+          
+          **Important**: You must copy `oo2core_8_win64.dll` from your Path of Exile installation and rename it to `oo2core.dll` in the application folder. This file is required for bundle decompression but cannot be distributed.
+          
+          ### 🔧 System Requirements
+          
+          - Windows 10 version 1809 or later / Windows 11
+          - .NET 8.0 Runtime (Windows Desktop)
+          - Path of Exile installation (for oo2core.dll)
+          
+          ### 📚 Documentation
+          
+          - See `README.md` for complete documentation
+          - See `SETUP.txt` for quick setup instructions
+          - See `DEPENDENCIES.md` for library information
+          
+          ---
+          
+          **Note**: This application is not affiliated with Grinding Gear Games. Use responsibly and respect Path of Exile's Terms of Service.
+        files: |
+          ${{ env.ARCHIVE_NAME }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ggpk-explorer-${{ env.VERSION }}-portable
+        path: ${{ env.ARCHIVE_NAME }}
+        retention-days: 30
