@@ -41,22 +41,22 @@ $ColorError = "Red"
 
 function Write-Step {
     param([string]$Message)
-    Write-Host "🔧 $Message" -ForegroundColor $ColorInfo
+    Write-Host "[SETUP] $Message" -ForegroundColor $ColorInfo
 }
 
 function Write-Success {
     param([string]$Message)
-    Write-Host "✅ $Message" -ForegroundColor $ColorSuccess
+    Write-Host "[SUCCESS] $Message" -ForegroundColor $ColorSuccess
 }
 
 function Write-Warning {
     param([string]$Message)
-    Write-Host "⚠️  $Message" -ForegroundColor $ColorWarning
+    Write-Host "[WARNING] $Message" -ForegroundColor $ColorWarning
 }
 
 function Write-Error {
     param([string]$Message)
-    Write-Host "❌ $Message" -ForegroundColor $ColorError
+    Write-Host "[ERROR] $Message" -ForegroundColor $ColorError
 }
 
 function Test-ScriptExists {
@@ -120,14 +120,14 @@ function Test-Dependencies {
     foreach ($file in $requiredFiles.Keys) {
         $description = $requiredFiles[$file]
         if (Test-Path $file) {
-            Write-Host "  ✅ $file" -ForegroundColor Green
+            Write-Host "  [OK] $file" -ForegroundColor Green
             if ($Detailed) {
                 $fileInfo = Get-Item $file
                 Write-Host "     Size: $([math]::Round($fileInfo.Length / 1MB, 2)) MB" -ForegroundColor Gray
                 Write-Host "     Modified: $($fileInfo.LastWriteTime)" -ForegroundColor Gray
             }
         } else {
-            Write-Host "  ❌ $file - MISSING" -ForegroundColor Red
+            Write-Host "  [MISSING] $file" -ForegroundColor Red
             Write-Host "     Description: $description" -ForegroundColor Gray
             $allPresent = $false
             $missingCount++
@@ -136,17 +136,17 @@ function Test-Dependencies {
     }
 
     # Check required directories
-    Write-Host "`n📂 Required Directories:" -ForegroundColor Yellow
+    Write-Host "`nRequired Directories:" -ForegroundColor Yellow
     foreach ($dir in $requiredDirectories.Keys) {
         $description = $requiredDirectories[$dir]
         if (Test-Path $dir -PathType Container) {
-            Write-Host "  ✅ $dir" -ForegroundColor Green
+            Write-Host "  [OK] $dir" -ForegroundColor Green
             if ($Detailed) {
                 $itemCount = (Get-ChildItem $dir -Recurse -File -ErrorAction SilentlyContinue).Count
                 Write-Host "     Files: $itemCount" -ForegroundColor Gray
             }
         } else {
-            Write-Host "  ❌ $dir - MISSING" -ForegroundColor Red
+            Write-Host "  [MISSING] $dir" -ForegroundColor Red
             Write-Host "     Description: $description" -ForegroundColor Gray
             $allPresent = $false
             $missingCount++
@@ -370,14 +370,14 @@ function Show-Oo2CoreInstructions {
     Write-Host "📋 oo2core.dll Setup Instructions" -ForegroundColor $ColorInfo
     Write-Host "=" * 60 -ForegroundColor $ColorInfo
     
-    Write-Host "`n🎯 You need to manually copy oo2core.dll from your Path of Exile installation:" -ForegroundColor $ColorWarning
+    Write-Host "`nYou need to manually copy oo2core.dll from your Path of Exile installation:" -ForegroundColor $ColorWarning
     
-    Write-Host "`n📂 Typical Path of Exile locations:" -ForegroundColor $ColorInfo
-    Write-Host "  • Steam: C:\Program Files (x86)\Steam\steamapps\common\Path of Exile\" -ForegroundColor Gray
-    Write-Host "  • Standalone: C:\Program Files (x86)\Grinding Gear Games\Path of Exile\" -ForegroundColor Gray
-    Write-Host "  • Epic Games: C:\Program Files\Epic Games\PathOfExile\" -ForegroundColor Gray
+    Write-Host "`nTypical Path of Exile locations:" -ForegroundColor $ColorInfo
+    Write-Host "  - Steam: C:\Program Files (x86)\Steam\steamapps\common\Path of Exile\" -ForegroundColor Gray
+    Write-Host "  - Standalone: C:\Program Files (x86)\Grinding Gear Games\Path of Exile\" -ForegroundColor Gray
+    Write-Host "  - Epic Games: C:\Program Files\Epic Games\PathOfExile\" -ForegroundColor Gray
     
-    Write-Host "`n💻 PowerShell commands to copy oo2core.dll:" -ForegroundColor $ColorInfo
+    Write-Host "`nPowerShell commands to copy oo2core.dll:" -ForegroundColor $ColorInfo
     Write-Host "  # For Steam installation:" -ForegroundColor Gray
     Write-Host '  Copy-Item "C:\Program Files (x86)\Steam\steamapps\common\Path of Exile\oo2core_8_win64.dll" libs\oo2core.dll' -ForegroundColor Yellow
     
@@ -387,16 +387,16 @@ function Show-Oo2CoreInstructions {
     Write-Host "`n  # Or search for it:" -ForegroundColor Gray
     Write-Host '  Get-ChildItem -Path "C:\" -Name "oo2core_8_win64.dll" -Recurse -ErrorAction SilentlyContinue' -ForegroundColor Yellow
     
-    Write-Host "`n⚠️  Important Notes:" -ForegroundColor $ColorWarning
-    Write-Host "  • The file is usually named 'oo2core_8_win64.dll' in Path of Exile" -ForegroundColor Gray
-    Write-Host "  • Rename it to 'oo2core.dll' when copying to libs folder" -ForegroundColor Gray
-    Write-Host "  • This file is required for bundle decompression" -ForegroundColor Gray
+    Write-Host "`nImportant Notes:" -ForegroundColor $ColorWarning
+    Write-Host "  - The file is usually named 'oo2core_8_win64.dll' in Path of Exile" -ForegroundColor Gray
+    Write-Host "  - Rename it to 'oo2core.dll' when copying to libs folder" -ForegroundColor Gray
+    Write-Host "  - This file is required for bundle decompression" -ForegroundColor Gray
     
     Write-Host "`n" + "=" * 60 -ForegroundColor $ColorInfo
 }
 
 # Main execution
-Write-Host "🚀 GGPK Explorer Complete Dependency Setup" -ForegroundColor $ColorInfo
+Write-Host "GGPK Explorer Complete Dependency Setup" -ForegroundColor $ColorInfo
 Write-Host "=" * 50
 
 # Check if we're in the right directory
@@ -420,7 +420,7 @@ if (-not $SkipVerification) {
     $verificationResult = Test-Dependencies -Detailed
     
     if ($verificationResult.AllPresent -and -not $Force) {
-        Write-Success "🎉 All dependencies are already present!"
+        Write-Success "All dependencies are already present!"
         Write-Host "Use -Force to re-setup dependencies anyway" -ForegroundColor Gray
         exit 0
     }
@@ -440,7 +440,7 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
 }
 
 $dotnetVersion = dotnet --version
-Write-Host "  ✅ .NET SDK version: $dotnetVersion" -ForegroundColor Gray
+Write-Host "  [OK] .NET SDK version: $dotnetVersion" -ForegroundColor Gray
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Error "Git not found. Please install Git first."
@@ -488,7 +488,7 @@ Write-Step "Running final dependency verification..."
 $finalVerification = Test-Dependencies -Detailed
 
 if ($finalVerification.AllPresent) {
-    Write-Success "🎉 All dependencies verified successfully!"
+    Write-Success "All dependencies verified successfully!"
     $verifyResult = $true
 } else {
     Write-Error "Final verification failed - $($finalVerification.MissingCount) dependencies still missing"
@@ -498,16 +498,16 @@ if ($finalVerification.AllPresent) {
 # Final status and instructions
 Write-Host "`n" + "=" * 50
 if ($setupSuccess -and $verifyResult) {
-    Write-Success "🎉 All dependencies set up successfully!"
-    Write-Host "`n🚀 Next Steps:" -ForegroundColor $ColorInfo
+    Write-Success "All dependencies set up successfully!"
+    Write-Host "`nNext Steps:" -ForegroundColor $ColorInfo
     Write-Host "  1. Ensure oo2core.dll is in the libs folder (see instructions above if missing)" -ForegroundColor Gray
     Write-Host "  2. Build GGPK Explorer: dotnet build" -ForegroundColor Gray
     Write-Host "  3. Run GGPK Explorer: dotnet run --project src\GGPKExplorer" -ForegroundColor Gray
     
-    Write-Host "`n📚 Additional Commands:" -ForegroundColor $ColorInfo
-    Write-Host "  • Verify dependencies: .\scripts\Verify-Dependencies.ps1" -ForegroundColor Gray
-    Write-Host "  • Build release version: dotnet build -c Release" -ForegroundColor Gray
-    Write-Host "  • Clean build: dotnet clean && dotnet build" -ForegroundColor Gray
+    Write-Host "`nAdditional Commands:" -ForegroundColor $ColorInfo
+    Write-Host "  - Verify dependencies: .\scripts\Verify-Dependencies.ps1" -ForegroundColor Gray
+    Write-Host "  - Build release version: dotnet build -c Release" -ForegroundColor Gray
+    Write-Host "  - Clean build: dotnet clean; dotnet build" -ForegroundColor Gray
     
 } elseif ($setupSuccess) {
     Write-Warning "Dependencies set up but verification had issues"
@@ -519,6 +519,6 @@ if ($setupSuccess -and $verifyResult) {
     exit 1
 }
 
-Write-Host "`n💡 For help with any issues, check:" -ForegroundColor $ColorInfo
-Write-Host "  • README.md - Complete setup instructions" -ForegroundColor Gray
-Write-Host "  • libs\README.md - Library-specific setup details" -ForegroundColor Gray
+Write-Host "`nFor help with any issues, check:" -ForegroundColor $ColorInfo
+Write-Host "  - README.md - Complete setup instructions" -ForegroundColor Gray
+Write-Host "  - libs\README.md - Library-specific setup details" -ForegroundColor Gray
