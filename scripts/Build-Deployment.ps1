@@ -211,8 +211,8 @@ if ($BuildMSI) {
     
     <Icon Id="GGPKExplorer.exe" SourceFile="$PublishDir\GGPKExplorer.exe" />
     <Property Id="ARPPRODUCTICON" Value="GGPKExplorer.exe" />
-    <Property Id="ARPHELPLINK" Value="https://github.com/ggpkexplorer/ggpkexplorer" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/ggpkexplorer/ggpkexplorer" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/caltus/ggpk-explorer" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/caltus/ggpk-explorer" />
   </Product>
 </Wix>
 "@

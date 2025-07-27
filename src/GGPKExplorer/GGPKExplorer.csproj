@@ -39,7 +39,7 @@
     <PackageVersion>1.0.0</PackageVersion>
     <Authors>GGPK Explorer Team</Authors>
     <Description>Windows Explorer-style file browser for Path of Exile GGPK files</Description>
-    <PackageProjectUrl>https://github.com/ggpkexplorer/ggpkexplorer</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/caltus/ggpk-explorer</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>pathofexile;ggpk;explorer;gaming;modding</PackageTags>
