@@ -1,0 +1,119 @@
+<Project>
+  
+  <!-- Global Properties -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors />
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    
+    <!-- Library Detection -->
+    <LibGGPK3SourceExists>false</LibGGPK3SourceExists>
+    <LibBundle3SourceExists>false</LibBundle3SourceExists>
+    <LibBundledGGPK3SourceExists>false</LibBundledGGPK3SourceExists>
+    <SystemExtensionsSourceExists Condition="Exists('$(MSBuildThisFileDirectory)libs\SystemExtensions\SystemExtensions\SystemExtensions.csproj')">true</SystemExtensionsSourceExists>
+    
+    <!-- DLL Detection -->
+    <LibGGPK3DllExists Condition="Exists('$(MSBuildThisFileDirectory)libs\LibGGPK3.dll')">true</LibGGPK3DllExists>
+    <LibBundle3DllExists Condition="Exists('$(MSBuildThisFileDirectory)libs\LibBundle3.dll')">true</LibBundle3DllExists>
+    <LibBundledGGPK3DllExists Condition="Exists('$(MSBuildThisFileDirectory)libs\LibBundledGGPK3.dll')">true</LibBundledGGPK3DllExists>
+    <SystemExtensionsDllExists Condition="Exists('$(MSBuildThisFileDirectory)libs\SystemExtensions.dll')">true</SystemExtensionsDllExists>
+    
+    <!-- Native DLL Detection -->
+    <Oo2CoreDllExists Condition="Exists('$(MSBuildThisFileDirectory)libs\oo2core.dll')">true</Oo2CoreDllExists>
+    <SystemExtensionsDllExists Condition="Exists('$(MSBuildThisFileDirectory)libs\SystemExtensions.dll')">true</SystemExtensionsDllExists>
+  </PropertyGroup>
+
+  <!-- Build Warnings and Errors -->
+  <Target Name="CheckLibraryDependencies" BeforeTargets="BeforeBuild">
+    
+    <!-- Check LibGGPK3 -->
+    <Warning Condition="'$(LibGGPK3SourceExists)' != 'true' AND '$(LibGGPK3DllExists)' != 'true'" 
+             Text="LibGGPK3: Neither source project nor DLL found. Expected: libs\LibGGPK3\LibGGPK3.csproj or libs\LibGGPK3.dll" />
+    <Error Condition="'$(LibGGPK3SourceExists)' != 'true' AND '$(LibGGPK3DllExists)' != 'true'" 
+           Text="LibGGPK3 dependency missing. Build cannot continue." />
+    
+    <!-- Check LibBundle3 -->
+    <Warning Condition="'$(LibBundle3SourceExists)' != 'true' AND '$(LibBundle3DllExists)' != 'true'" 
+             Text="LibBundle3: Neither source project nor DLL found. Expected: libs\LibBundle3\LibBundle3.csproj or libs\LibBundle3.dll" />
+    <Error Condition="'$(LibBundle3SourceExists)' != 'true' AND '$(LibBundle3DllExists)' != 'true'" 
+           Text="LibBundle3 dependency missing. Build cannot continue." />
+    
+    <!-- Check LibBundledGGPK3 -->
+    <Warning Condition="'$(LibBundledGGPK3SourceExists)' != 'true' AND '$(LibBundledGGPK3DllExists)' != 'true'" 
+             Text="LibBundledGGPK3: Neither source project nor DLL found. Expected: libs\LibBundledGGPK3\LibBundledGGPK3.csproj or libs\LibBundledGGPK3.dll" />
+    <Error Condition="'$(LibBundledGGPK3SourceExists)' != 'true' AND '$(LibBundledGGPK3DllExists)' != 'true'" 
+           Text="LibBundledGGPK3 dependency missing. Build cannot continue." />
+    
+    <!-- Check SystemExtensions -->
+    <Warning Condition="'$(SystemExtensionsSourceExists)' != 'true' AND '$(SystemExtensionsDllExists)' != 'true'" 
+             Text="SystemExtensions: Neither source project nor DLL found. Expected: libs\SystemExtensions\SystemExtensions\SystemExtensions.csproj or libs\SystemExtensions.dll" />
+    <Error Condition="'$(SystemExtensionsSourceExists)' != 'true' AND '$(SystemExtensionsDllExists)' != 'true'" 
+           Text="SystemExtensions dependency missing. Build cannot continue." />
+    
+    <!-- Check Native DLLs -->
+    <Warning Condition="'$(Oo2CoreDllExists)' != 'true'" 
+             Text="oo2core.dll not found in libs folder. Oodle compression will not work." />
+    
+    <!-- Success Messages -->
+    <Message Condition="'$(LibGGPK3DllExists)' == 'true'" 
+             Text="✓ LibGGPK3.dll found - using precompiled library" 
+             Importance="high" />
+    
+    <Message Condition="'$(LibBundle3DllExists)' == 'true'" 
+             Text="✓ LibBundle3.dll found - using precompiled library" 
+             Importance="high" />
+    
+    <Message Condition="'$(LibBundledGGPK3DllExists)' == 'true'" 
+             Text="✓ LibBundledGGPK3.dll found - using precompiled library" 
+             Importance="high" />
+    
+    <Message Condition="'$(SystemExtensionsSourceExists)' == 'true'" 
+             Text="✓ SystemExtensions source found - will compile automatically" 
+             Importance="high" />
+    <Message Condition="'$(SystemExtensionsSourceExists)' != 'true' AND '$(SystemExtensionsDllExists)' == 'true'" 
+             Text="✓ SystemExtensions.dll found - using precompiled library" 
+             Importance="high" />
+    
+    <Message Condition="'$(Oo2CoreDllExists)' == 'true'" 
+             Text="✓ oo2core.dll found - Oodle compression available" 
+             Importance="high" />
+  </Target>
+
+  <!-- Copy compiled SystemExtensions.dll to libs folder after build (only when building from source) -->
+  <Target Name="CopyCompiledLibrariesToLibsFolder" AfterTargets="Build" Condition="'$(MSBuildProjectName)' == 'GGPKExplorer'">
+    
+    <!-- Copy SystemExtensions.dll if built from source -->
+    <Copy Condition="'$(SystemExtensionsSourceExists)' == 'true'"
+          SourceFiles="$(MSBuildThisFileDirectory)libs\SystemExtensions\SystemExtensions\bin\$(Configuration)\net8.0\SystemExtensions.dll"
+          DestinationFolder="$(MSBuildThisFileDirectory)libs"
+          SkipUnchangedFiles="true" />
+    <Message Condition="'$(SystemExtensionsSourceExists)' == 'true'" 
+             Text="📦 Compiled and copied SystemExtensions.dll to libs folder" 
+             Importance="high" />
+    
+  </Target>
+
+  <!-- Version checking target for SystemExtensions -->
+  <Target Name="CheckSystemExtensionsVersion" AfterTargets="CopyCompiledLibrariesToLibsFolder" Condition="'$(MSBuildProjectName)' == 'GGPKExplorer' AND '$(SystemExtensionsSourceExists)' == 'true'">
+    
+    <!-- Get version info from the newly compiled SystemExtensions.dll -->
+    <GetAssemblyIdentity AssemblyFiles="$(MSBuildThisFileDirectory)libs\SystemExtensions.dll">
+      <Output TaskParameter="Assemblies" ItemName="SystemExtensionsAssembly" />
+    </GetAssemblyIdentity>
+    
+    <!-- Extract version information -->
+    <PropertyGroup>
+      <CompiledSystemExtensionsVersion>%(SystemExtensionsAssembly.Version)</CompiledSystemExtensionsVersion>
+    </PropertyGroup>
+    
+    <!-- Version information message -->
+    <Message Text="✅ SystemExtensions compiled successfully: version $(CompiledSystemExtensionsVersion)" 
+             Importance="high" />
+    
+  </Target>
+
+</Project>

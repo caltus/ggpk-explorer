@@ -1,0 +1,109 @@
+<ui:FluentWindow x:Class="GGPKExplorer.Views.Dialogs.AboutDialog"
+                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                Title="About GGPK Explorer"
+                Width="480"
+                Height="480"
+                MinWidth="480"
+                MinHeight="480"
+                MaxWidth="480"
+                MaxHeight="480"
+                WindowStartupLocation="CenterOwner"
+                ResizeMode="NoResize"
+                AutomationProperties.Name="About Dialog"
+                AutomationProperties.HelpText="Information about GGPK Explorer application"
+                KeyboardNavigation.TabNavigation="Cycle">
+    
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        
+        <!-- Main Content -->
+        <StackPanel Grid.Row="0">
+            <!-- Application Header Card -->
+            <ui:Card Margin="0,0,0,16" Padding="20">
+                <StackPanel>
+                    <!-- Application Icon and Name -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ui:SymbolIcon Symbol="FolderOpen24" FontSize="48" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Margin="0,0,16,0" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="GGPK Explorer" 
+                                       FontSize="28" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <TextBlock Text="Version 1.0.0" 
+                                       FontSize="16" 
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" 
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Description -->
+                    <TextBlock Text="A Windows Explorer-style file browser for Path of Exile's GGPK (Game Game Pack) files." 
+                               TextWrapping="Wrap" 
+                               FontSize="14"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" 
+                               Margin="0,0,0,10" />
+                    
+                    <!-- Technology Stack -->
+                    <TextBlock Text="Built with WPF, WPF-UI, and .NET 8" 
+                               FontSize="13" 
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </ui:Card>
+            
+            <!-- Credits Card -->
+            <ui:Card Margin="0,0,0,16" Padding="18">
+                <StackPanel>
+                    <TextBlock Text="Libraries Used" 
+                               FontSize="16" 
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" 
+                               Margin="0,0,0,10" />
+                    
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <ui:SymbolIcon Symbol="Library24" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Margin="0,0,8,0" />
+                            <TextBlock Text="LibGGPK3 by aianlinb" 
+                                       FontSize="13" 
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <ui:SymbolIcon Symbol="WindowApps24" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Margin="0,0,8,0" />
+                            <TextBlock Text="WPF-UI by lepoco" 
+                                       FontSize="13" 
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Archive24" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Margin="0,0,8,0" />
+                            <TextBlock Text="Oodle compression by RAD Game Tools" 
+                                       FontSize="13" 
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </ui:Card>
+            
+            <!-- Copyright -->
+            <TextBlock Text="© 2024 GGPK Explorer" 
+                       FontSize="12" 
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+        </StackPanel>
+        
+        <!-- Close Button -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <ui:Button Content="Close" 
+                       Appearance="Primary"
+                       MinWidth="80"
+                       Click="CloseButton_Click" />
+        </StackPanel>
+    </Grid>
+    
+</ui:FluentWindow>

@@ -1,0 +1,152 @@
+<ui:ContentDialog x:Class="GGPKExplorer.Views.Dialogs.ExtractionDialog"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                   Title="Extract Files"
+                   PrimaryButtonText="Extract"
+                   SecondaryButtonText="Cancel"
+                   DefaultButton="Primary"
+                   IsPrimaryButtonEnabled="{Binding CanExtract}"
+                   Width="500"
+                   Height="400">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Destination Selection -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Destination Folder:" 
+                       FontWeight="SemiBold" 
+                       Margin="0,0,0,8"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <ui:TextBox Grid.Column="0" 
+                           Text="{Binding DestinationPath, UpdateSourceTrigger=PropertyChanged}"
+                           PlaceholderText="Select destination folder..."
+                           IsReadOnly="True"
+                           Margin="0,0,8,0"/>
+                
+                <ui:Button Grid.Column="1" 
+                          Content="Browse..."
+                          Command="{Binding BrowseDestinationCommand}"
+                          Appearance="Secondary"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Files to Extract -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,20">
+            <TextBlock Text="Files to Extract:" 
+                       FontWeight="SemiBold" 
+                       Margin="0,0,0,8"/>
+            <ui:TextBlock Text="{Binding FileCountText}" 
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- Options -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,20">
+            <TextBlock Text="Options:" 
+                       FontWeight="SemiBold" 
+                       Margin="0,0,0,8"/>
+            
+            <CheckBox Content="Preserve directory structure" 
+                      IsChecked="{Binding PreserveDirectoryStructure}"
+                      Margin="0,4"/>
+            
+            <CheckBox Content="Overwrite existing files" 
+                      IsChecked="{Binding OverwriteExisting}"
+                      Margin="0,4"/>
+            
+            <CheckBox Content="Create destination folder if it doesn't exist" 
+                      IsChecked="{Binding CreateDestinationFolder}"
+                      Margin="0,4"/>
+        </StackPanel>
+
+        <!-- File List -->
+        <GroupBox Grid.Row="3" Header="Files and Folders" Margin="0,0,0,20">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding FilesToExtract}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <ui:SymbolIcon Grid.Column="0" 
+                                              Symbol="{Binding IconSymbol}" 
+                                              FontSize="16"
+                                              Margin="0,0,8,0"/>
+                                
+                                <TextBlock Grid.Column="1" 
+                                          Text="{Binding Name}"
+                                          VerticalAlignment="Center"/>
+                                
+                                <TextBlock Grid.Column="2" 
+                                          Text="{Binding SizeFormatted}"
+                                          Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </GroupBox>
+
+        <!-- Progress Section (Initially Hidden) -->
+        <StackPanel Grid.Row="4" 
+                    Visibility="{Binding IsExtracting, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Margin="0,0,0,20">
+            
+            <TextBlock Text="Extraction Progress:" 
+                       FontWeight="SemiBold" 
+                       Margin="0,0,0,8"/>
+            
+            <ProgressBar Value="{Binding ProgressPercentage}" 
+                        Maximum="100"
+                        Height="8"
+                        Margin="0,0,0,8"/>
+            
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0" 
+                          Text="{Binding ProgressStatus}"
+                          Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                
+                <TextBlock Grid.Column="1" 
+                          Text="{Binding ProgressText}"
+                          Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </Grid>
+            
+            <TextBlock Text="{Binding CurrentFile}" 
+                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                       FontSize="11"
+                       Margin="0,4,0,0"
+                       TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+
+        <!-- Status/Error Messages -->
+        <ui:InfoBar Grid.Row="5"
+                   IsOpen="{Binding HasError}"
+                   Severity="Error"
+                   Title="Extraction Error"
+                   Message="{Binding ErrorMessage}"
+                   IsClosable="True"/>
+    </Grid>
+</ui:ContentDialog>

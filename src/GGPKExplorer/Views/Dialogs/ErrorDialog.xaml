@@ -1,0 +1,103 @@
+<ui:ContentDialog x:Class="GGPKExplorer.Views.Dialogs.ErrorDialog"
+                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                  Title="Error"
+                  PrimaryButtonText="OK"
+                  SecondaryButtonText="Details"
+                  CloseButtonText="Copy Error"
+                  DefaultButton="Primary"
+                  MinWidth="400"
+                  MaxWidth="600">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Error Icon and Title -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+            <ui:SymbolIcon Symbol="ErrorCircle24" 
+                          FontSize="32" 
+                          Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                          Margin="0,0,15,0"/>
+            <TextBlock x:Name="ErrorTitleTextBlock"
+                      Text="An error occurred"
+                      FontSize="18"
+                      FontWeight="SemiBold"
+                      VerticalAlignment="Center"/>
+        </StackPanel>
+        
+        <!-- Error Message -->
+        <TextBlock x:Name="ErrorMessageTextBlock"
+                  Grid.Row="1"
+                  Text="An unexpected error occurred."
+                  TextWrapping="Wrap"
+                  Margin="0,0,0,15"
+                  FontSize="14"/>
+        
+        <!-- Context Information -->
+        <TextBlock x:Name="ContextTextBlock"
+                  Grid.Row="2"
+                  Text=""
+                  TextWrapping="Wrap"
+                  Margin="0,0,0,15"
+                  FontSize="12"
+                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                  Visibility="Collapsed"/>
+        
+        <!-- Recovery Options -->
+        <StackPanel x:Name="RecoveryOptionsPanel"
+                   Grid.Row="3"
+                   Orientation="Vertical"
+                   Margin="0,0,0,15"
+                   Visibility="Collapsed">
+            <TextBlock Text="Recovery Options:"
+                      FontWeight="SemiBold"
+                      Margin="0,0,0,10"/>
+            
+            <ui:Button x:Name="RetryButton"
+                      Content="Retry Operation"
+                      Icon="{ui:SymbolIcon ArrowClockwise24}"
+                      Appearance="Secondary"
+                      Margin="0,0,0,5"
+                      Click="RetryButton_Click"/>
+            
+            <ui:Button x:Name="IgnoreButton"
+                      Content="Continue Without This File"
+                      Icon="{ui:SymbolIcon ArrowRight24}"
+                      Appearance="Secondary"
+                      Margin="0,0,0,5"
+                      Click="IgnoreButton_Click"/>
+            
+            <ui:Button x:Name="OpenLogButton"
+                      Content="Open Error Log"
+                      Icon="{ui:SymbolIcon Document24}"
+                      Appearance="Secondary"
+                      Click="OpenLogButton_Click"/>
+        </StackPanel>
+        
+        <!-- Technical Details (Initially Hidden) -->
+        <Expander x:Name="TechnicalDetailsExpander"
+                 Grid.Row="4"
+                 Header="Technical Details"
+                 IsExpanded="False"
+                 Visibility="Collapsed">
+            <ScrollViewer MaxHeight="200" 
+                         VerticalScrollBarVisibility="Auto"
+                         Margin="0,10,0,0">
+                <TextBlock x:Name="TechnicalDetailsTextBlock"
+                          Text=""
+                          FontFamily="Consolas"
+                          FontSize="11"
+                          TextWrapping="Wrap"
+                          Background="{DynamicResource ControlFillColorDefaultBrush}"
+                          Padding="10"/>
+            </ScrollViewer>
+        </Expander>
+    </Grid>
+</ui:ContentDialog>

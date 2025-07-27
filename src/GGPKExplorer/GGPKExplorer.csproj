@@ -1,0 +1,147 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    
+    <!-- Application Information -->
+    <AssemblyTitle>GGPK Explorer</AssemblyTitle>
+    <AssemblyDescription>Windows Explorer-style file browser for Path of Exile GGPK files</AssemblyDescription>
+    <AssemblyCompany>GGPK Explorer Team</AssemblyCompany>
+    <AssemblyProduct>GGPK Explorer</AssemblyProduct>
+    <AssemblyCopyright>Copyright © 2025</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+
+    
+    <!-- ClickOnce Configuration -->
+    <PublishUrl>publish\</PublishUrl>
+    <PublishProtocol>ClickOnce</PublishProtocol>
+    <UpdateEnabled>true</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>1</ApplicationRevision>
+    <ApplicationVersion>1.0.0.1</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    
+    <!-- MSI Configuration -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>GGPKExplorer</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Authors>GGPK Explorer Team</Authors>
+    <Description>Windows Explorer-style file browser for Path of Exile GGPK files</Description>
+    <PackageProjectUrl>https://github.com/ggpkexplorer/ggpkexplorer</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageTags>pathofexile;ggpk;explorer;gaming;modding</PackageTags>
+    
+    <!-- Self-contained deployment -->
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF-UI and MVVM Dependencies -->
+    <PackageReference Include="BCnEncoder.Net" Version="2.2.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="WPF-UI" Version="3.0.5" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    
+
+    
+    <!-- Deployment Dependencies - WixSharp removed for compatibility -->
+  </ItemGroup>
+
+  <!-- Conditional Library References - Use source projects if available, otherwise use DLLs -->
+  <ItemGroup Condition="'$(LibGGPK3SourceExists)' == 'true'">
+    <ProjectReference Include="..\..\libs\LibGGPK3\LibGGPK3.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(LibGGPK3SourceExists)' != 'true' AND '$(LibGGPK3DllExists)' == 'true'">
+    <Reference Include="LibGGPK3">
+      <HintPath>..\..\libs\LibGGPK3.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <None Include="..\..\libs\LibGGPK3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(LibBundle3SourceExists)' == 'true'">
+    <ProjectReference Include="..\..\libs\LibBundle3\LibBundle3.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(LibBundle3SourceExists)' != 'true' AND '$(LibBundle3DllExists)' == 'true'">
+    <Reference Include="LibBundle3">
+      <HintPath>..\..\libs\LibBundle3.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <None Include="..\..\libs\LibBundle3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(LibBundledGGPK3SourceExists)' == 'true'">
+    <ProjectReference Include="..\..\libs\LibBundledGGPK3\LibBundledGGPK3.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(LibBundledGGPK3SourceExists)' != 'true' AND '$(LibBundledGGPK3DllExists)' == 'true'">
+    <Reference Include="LibBundledGGPK3">
+      <HintPath>..\..\libs\LibBundledGGPK3.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <None Include="..\..\libs\LibBundledGGPK3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- SystemExtensions References -->
+  <ItemGroup Condition="'$(SystemExtensionsSourceExists)' == 'true'">
+    <ProjectReference Include="..\..\libs\SystemExtensions\SystemExtensions\SystemExtensions.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SystemExtensionsSourceExists)' != 'true' AND '$(SystemExtensionsDllExists)' == 'true'">
+    <Reference Include="SystemExtensions">
+      <HintPath>..\..\libs\SystemExtensions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <None Include="..\..\libs\SystemExtensions.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Native Dependencies -->
+  <ItemGroup Condition="'$(Oo2CoreDllExists)' == 'true'">
+    <None Include="..\..\libs\oo2core.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Settings Files -->
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    
+    <!-- Deployment Scripts -->
+    <None Include="..\..\scripts\Build-Deployment.ps1">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\scripts\Test-Deployment.ps1">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

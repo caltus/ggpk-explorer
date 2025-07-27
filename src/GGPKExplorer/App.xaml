@@ -1,0 +1,28 @@
+﻿<Application x:Class="GGPKExplorer.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:GGPKExplorer"
+             xmlns:converters="clr-namespace:GGPKExplorer.Converters"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- WPF-UI Theme Dictionary -->
+                <ui:ThemesDictionary Theme="Dark" />
+                <!-- WPF-UI Controls Dictionary -->
+                <ui:ControlsDictionary />
+                
+                <!-- Custom Application Resources -->
+                <ResourceDictionary Source="Resources/Styles/CustomStyles.xaml" />
+                <ResourceDictionary Source="Resources/Animations/UIAnimations.xaml" />
+                <ResourceDictionary Source="Resources/Icons/AppIcon.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Global Converters -->
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            
+            <!-- Inverted Boolean to Visibility Converter -->
+            <converters:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
