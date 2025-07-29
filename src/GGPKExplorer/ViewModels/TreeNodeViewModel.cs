@@ -12,7 +12,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GGPKExplorer.Models;
 using GGPKExplorer.Services;
-using GGPKExplorer.ViewModels;
 
 namespace GGPKExplorer.ViewModels
 {
@@ -292,9 +291,32 @@ namespace GGPKExplorer.ViewModels
                 {
                     var destinationPath = folderDialog.FolderName;
                     
-                    // Use ExtractMultipleAsync to preserve relative path structure
+                    // Create progress reporter to update the UI
+                    var progress = new Progress<Services.ProgressInfo>(progressInfo =>
+                    {
+                        // Find the ExplorerViewModel to update progress
+                        var explorerViewModel = FindExplorerViewModel();
+                        if (explorerViewModel != null)
+                        {
+                            explorerViewModel.IsProgressVisible = true;
+                            explorerViewModel.ProgressValue = progressInfo.Percentage;
+                            explorerViewModel.ProgressText = progressInfo.Status ?? string.Empty;
+                            explorerViewModel.StatusText = $"Extracting {NodeInfo.Name}... {progressInfo.FilesProcessed}/{progressInfo.TotalFiles} files";
+                        }
+                    });
+                    
+                    // Use ExtractMultipleAsync to preserve relative path structure with progress reporting
                     var sourcePaths = new[] { NodeInfo.FullPath };
-                    var results = await _fileOperationsService.ExtractMultipleAsync(sourcePaths, destinationPath);
+                    var results = await _fileOperationsService.ExtractMultipleAsync(sourcePaths, destinationPath, progress);
+                    
+                    // Hide progress when done
+                    var explorerViewModel = FindExplorerViewModel();
+                    if (explorerViewModel != null)
+                    {
+                        explorerViewModel.IsProgressVisible = false;
+                        explorerViewModel.ProgressValue = 0;
+                        explorerViewModel.ProgressText = string.Empty;
+                    }
                     
                     bool success = results.IsSuccess;
 
@@ -304,8 +326,13 @@ namespace GGPKExplorer.ViewModels
                         var relativePath = GetRelativePathFromRoot(NodeInfo.FullPath);
                         var fullDestinationPath = System.IO.Path.Combine(destinationPath, relativePath);
                         
+                        if (explorerViewModel != null)
+                        {
+                            explorerViewModel.StatusText = $"Successfully extracted {NodeInfo.Name} ({results.SuccessfulFiles} files)";
+                        }
+                        
                         MessageBox.Show(
-                            $"Successfully extracted {NodeInfo.Name} to:\n{fullDestinationPath}\n\nRelative path structure preserved.",
+                            $"Successfully extracted {NodeInfo.Name} to:\n{fullDestinationPath}\n\nFiles extracted: {results.SuccessfulFiles}\nRelative path structure preserved.",
                             "Extraction Complete",
                             MessageBoxButton.OK,
                             MessageBoxImage.Information);
@@ -315,6 +342,11 @@ namespace GGPKExplorer.ViewModels
                         var errorMessage = results.Errors.Length > 0 
                             ? $"Failed to extract {NodeInfo.Name}: {results.Errors[0].ErrorMessage}"
                             : $"Failed to extract {NodeInfo.Name}";
+                            
+                        if (explorerViewModel != null)
+                        {
+                            explorerViewModel.StatusText = $"Extraction failed: {NodeInfo.Name}";
+                        }
                             
                         MessageBox.Show(
                             errorMessage,
@@ -326,6 +358,16 @@ namespace GGPKExplorer.ViewModels
             }
             catch (Exception ex)
             {
+                // Hide progress on error
+                var explorerViewModel = FindExplorerViewModel();
+                if (explorerViewModel != null)
+                {
+                    explorerViewModel.IsProgressVisible = false;
+                    explorerViewModel.ProgressValue = 0;
+                    explorerViewModel.ProgressText = string.Empty;
+                    explorerViewModel.StatusText = $"Error extracting {NodeInfo.Name}";
+                }
+                
                 MessageBox.Show(
                     $"Error extracting {NodeInfo.Name}: {ex.Message}",
                     "Extraction Error",
@@ -407,6 +449,29 @@ namespace GGPKExplorer.ViewModels
             }
 
             return relativePath;
+        }
+
+        /// <summary>
+        /// Finds the ExplorerViewModel by traversing up the visual tree
+        /// This is a simple approach - in a more complex app, you'd use dependency injection or messaging
+        /// </summary>
+        private ExplorerViewModel? FindExplorerViewModel()
+        {
+            try
+            {
+                // Try to find the main window and get the ExplorerViewModel from its DataContext
+                var mainWindow = Application.Current?.MainWindow;
+                if (mainWindow?.DataContext is MainViewModel mainViewModel)
+                {
+                    return mainViewModel.ExplorerViewModel;
+                }
+            }
+            catch
+            {
+                // Ignore errors in finding the view model
+            }
+            
+            return null;
         }
 
         /// <summary>

@@ -355,11 +355,23 @@ public partial class MainViewModel : ObservableObject
         if (e.PropertyName == nameof(ExplorerViewModel.IsLoading))
         {
             IsLoading = ExplorerViewModel.IsLoading;
-            IsProgressVisible = ExplorerViewModel.IsLoading;
+            IsProgressVisible = ExplorerViewModel.IsLoading || ExplorerViewModel.IsProgressVisible;
         }
         else if (e.PropertyName == nameof(ExplorerViewModel.StatusText))
         {
             StatusText = ExplorerViewModel.StatusText;
+        }
+        else if (e.PropertyName == nameof(ExplorerViewModel.ProgressValue))
+        {
+            ProgressValue = ExplorerViewModel.ProgressValue;
+        }
+        else if (e.PropertyName == nameof(ExplorerViewModel.ProgressText))
+        {
+            ProgressText = ExplorerViewModel.ProgressText;
+        }
+        else if (e.PropertyName == nameof(ExplorerViewModel.IsProgressVisible))
+        {
+            IsProgressVisible = ExplorerViewModel.IsLoading || ExplorerViewModel.IsProgressVisible;
         }
     }
 

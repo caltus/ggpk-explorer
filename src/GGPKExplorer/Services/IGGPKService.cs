@@ -84,6 +84,16 @@ namespace GGPKExplorer.Services
         Task<byte[]> ReadFileAsync(string path, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Extracts a directory and all its contents to the specified destination path
+        /// Uses LibGGPK3's built-in GGPK.Extract method for efficient directory extraction
+        /// </summary>
+        /// <param name="directoryPath">Path to the directory to extract</param>
+        /// <param name="destinationPath">Destination path for extraction</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Number of files extracted</returns>
+        Task<int> ExtractDirectoryAsync(string directoryPath, string destinationPath, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Gets detailed properties of a file or directory
         /// </summary>
         /// <param name="path">Path to the file or directory</param>

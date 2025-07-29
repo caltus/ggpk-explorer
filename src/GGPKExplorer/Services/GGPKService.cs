@@ -475,19 +475,50 @@ namespace GGPKExplorer.Services
                     {
                         System.Diagnostics.Debug.WriteLine($"GGPKService.GetNodeInfoAsync: Looking for path '{path}'");
                         
-                        // For bundled GGPK files, prioritize bundle index lookup
+                        // For bundled GGPK files, handle both files and directories through bundle index
                         if (_ggpkWrapper.IsBundled && _indexDecompressor.HasIndexFile())
                         {
                             try
                             {
                                 System.Diagnostics.Debug.WriteLine($"Searching in bundle index for path: {path}");
-                                var indexNodes = _indexDecompressor.GetIndexNodesForPath(path);
-                                var result = indexNodes.FirstOrDefault();
-                                if (result != null)
+                                
+                                // For directory paths, we need to check if the path represents a directory
+                                // by looking at the parent directory and seeing if it contains a subdirectory with this name
+                                if (path.EndsWith("/"))
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"Found in bundle index: {result.Name}");
-                                    return result;
+                                    var pathWithoutSlash = path.TrimEnd('/');
+                                    System.Diagnostics.Debug.WriteLine($"Looking for directory: {pathWithoutSlash}");
+                                    
+                                    // Get the parent path
+                                    var parentPath = Path.GetDirectoryName(pathWithoutSlash)?.Replace('\\', '/') ?? "";
+                                    var dirName = Path.GetFileName(pathWithoutSlash);
+                                    
+                                    System.Diagnostics.Debug.WriteLine($"Parent path: '{parentPath}', Directory name: '{dirName}'");
+                                    
+                                    // Get nodes from parent directory
+                                    var parentNodes = _indexDecompressor.GetIndexNodesForPath(parentPath);
+                                    var directoryNode = parentNodes.FirstOrDefault(n => 
+                                        n.Type == NodeType.Directory && 
+                                        string.Equals(n.Name, dirName, StringComparison.OrdinalIgnoreCase));
+                                    
+                                    if (directoryNode != null)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Found directory in bundle index: {directoryNode.Name}");
+                                        return directoryNode;
+                                    }
                                 }
+                                else
+                                {
+                                    // For file paths, use the existing logic
+                                    var indexNodes = _indexDecompressor.GetIndexNodesForPath(path);
+                                    var result = indexNodes.FirstOrDefault();
+                                    if (result != null)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Found in bundle index: {result.Name}");
+                                        return result;
+                                    }
+                                }
+                                
                                 System.Diagnostics.Debug.WriteLine($"Not found in bundle index, trying GGPK structure");
                             }
                             catch (Exception ex)
@@ -498,21 +529,66 @@ namespace GGPKExplorer.Services
                         }
                         
                         // Try to find in regular GGPK structure (fallback or non-bundled)
-                        var file = _ggpkWrapper.FindFile(path);
-                        if (file != null)
+                        // Always try both file and directory lookups with different path formats
+                        
+                        System.Diagnostics.Debug.WriteLine($"Looking for path in GGPK structure: {path}");
+                        
+                        // Try as file first (for non-directory paths)
+                        if (!path.EndsWith("/"))
                         {
-                            System.Diagnostics.Debug.WriteLine($"Found file in GGPK structure: {file.Name}");
-                            return ConvertTreeNodeToNodeInfo(file, path);
+                            var file = _ggpkWrapper.FindFile(path);
+                            if (file != null)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Found file in GGPK structure: {file.Name}");
+                                return ConvertTreeNodeToNodeInfo(file, path);
+                            }
                         }
                         
-                        var directory = _ggpkWrapper.FindDirectory(path);
-                        if (directory != null)
+                        // Try as directory with multiple path formats
+                        var directoryPaths = new List<string>();
+                        
+                        if (path.EndsWith("/"))
                         {
-                            System.Diagnostics.Debug.WriteLine($"Found directory in GGPK structure: {directory.Name}");
-                            return ConvertTreeNodeToNodeInfo(directory, path);
+                            // For paths ending with /, try both with and without slash
+                            directoryPaths.Add(path);
+                            directoryPaths.Add(path.TrimEnd('/'));
+                        }
+                        else
+                        {
+                            // For paths not ending with /, try both without and with slash
+                            directoryPaths.Add(path);
+                            directoryPaths.Add(path + "/");
+                        }
+                        
+                        foreach (var dirPath in directoryPaths)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Trying directory path: '{dirPath}'");
+                            var directory = _ggpkWrapper.FindDirectory(dirPath);
+                            if (directory != null)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Found directory in GGPK structure: {directory.Name} (using path: '{dirPath}')");
+                                return ConvertTreeNodeToNodeInfo(directory, path);
+                            }
                         }
                         
                         System.Diagnostics.Debug.WriteLine($"Path not found anywhere: {path}");
+                        
+                        // Debug: List root directory contents to see what's available
+                        try
+                        {
+                            System.Diagnostics.Debug.WriteLine("Debug: Listing root directory contents...");
+                            var rootChildren = _ggpkWrapper.GetChildren(_ggpkWrapper.Root!);
+                            foreach (var child in rootChildren.Take(10)) // Limit to first 10 for debugging
+                            {
+                                var childType = child is LibGGPK3.Records.DirectoryRecord ? "DIR" : "FILE";
+                                System.Diagnostics.Debug.WriteLine($"  {childType}: {child.Name}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error listing root contents: {ex.Message}");
+                        }
+                        
                         return null;
                     }
                     catch (Exception ex)
@@ -589,6 +665,32 @@ namespace GGPKExplorer.Services
                                 var ggpkFile = _ggpkWrapper.FindFile(path);
                                 if (ggpkFile == null)
                                 {
+                                    // Check if this might be a directory instead of a file
+                                    System.Diagnostics.Debug.WriteLine($"ReadFileAsync: Checking if '{path}' is a directory");
+                                    var directory = _ggpkWrapper.FindDirectory(path);
+                                    System.Diagnostics.Debug.WriteLine($"ReadFileAsync: FindDirectory('{path}') returned: {(directory != null ? directory.Name : "null")}");
+                                    
+                                    if (directory == null && path.EndsWith("/"))
+                                    {
+                                        var pathWithoutSlash = path.TrimEnd('/');
+                                        System.Diagnostics.Debug.WriteLine($"ReadFileAsync: Trying without slash: '{pathWithoutSlash}'");
+                                        directory = _ggpkWrapper.FindDirectory(pathWithoutSlash);
+                                        System.Diagnostics.Debug.WriteLine($"ReadFileAsync: FindDirectory('{pathWithoutSlash}') returned: {(directory != null ? directory.Name : "null")}");
+                                    }
+                                    
+                                    if (directory != null)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"ReadFileAsync: Found directory '{directory.Name}', throwing InvalidOperationException");
+                                        stopwatch.Stop();
+                                        _enhancedLogging.LogGGPKOperationComplete("ReadFile", stopwatch.Elapsed, false, 
+                                            new Dictionary<string, object>
+                                            {
+                                                ["FilePath"] = path,
+                                                ["Error"] = "Attempted to read directory as file"
+                                            });
+                                        throw new InvalidOperationException($"Cannot read directory '{path}' as a file. Use directory extraction methods instead.");
+                                    }
+                                    
                                     stopwatch.Stop();
                                     _enhancedLogging.LogGGPKOperationComplete("ReadFile", stopwatch.Elapsed, false, 
                                         new Dictionary<string, object>
@@ -611,6 +713,32 @@ namespace GGPKExplorer.Services
                             var ggpkFile = _ggpkWrapper.FindFile(path);
                             if (ggpkFile == null)
                             {
+                                // Check if this might be a directory instead of a file
+                                System.Diagnostics.Debug.WriteLine($"ReadFileAsync: Checking if '{path}' is a directory (regular GGPK)");
+                                var directory = _ggpkWrapper.FindDirectory(path);
+                                System.Diagnostics.Debug.WriteLine($"ReadFileAsync: FindDirectory('{path}') returned: {(directory != null ? directory.Name : "null")}");
+                                
+                                if (directory == null && path.EndsWith("/"))
+                                {
+                                    var pathWithoutSlash = path.TrimEnd('/');
+                                    System.Diagnostics.Debug.WriteLine($"ReadFileAsync: Trying without slash: '{pathWithoutSlash}'");
+                                    directory = _ggpkWrapper.FindDirectory(pathWithoutSlash);
+                                    System.Diagnostics.Debug.WriteLine($"ReadFileAsync: FindDirectory('{pathWithoutSlash}') returned: {(directory != null ? directory.Name : "null")}");
+                                }
+                                
+                                if (directory != null)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"ReadFileAsync: Found directory '{directory.Name}', throwing InvalidOperationException");
+                                    stopwatch.Stop();
+                                    _enhancedLogging.LogGGPKOperationComplete("ReadFile", stopwatch.Elapsed, false, 
+                                        new Dictionary<string, object>
+                                        {
+                                            ["FilePath"] = path,
+                                            ["Error"] = "Attempted to read directory as file"
+                                        });
+                                    throw new InvalidOperationException($"Cannot read directory '{path}' as a file. Use directory extraction methods instead.");
+                                }
+                                
                                 stopwatch.Stop();
                                 _enhancedLogging.LogGGPKOperationComplete("ReadFile", stopwatch.Elapsed, false, 
                                     new Dictionary<string, object>
@@ -680,6 +808,270 @@ namespace GGPKExplorer.Services
                 OperationPriority.Normal,
                 cancellationToken
             );
+        }
+
+        /// <summary>
+        /// Extracts a directory and all its contents to the specified destination path
+        /// Uses LibGGPK3's built-in GGPK.Extract method for efficient directory extraction
+        /// Reference: VisualGGPK3 example implementation
+        /// </summary>
+        /// <param name="directoryPath">Path to the directory to extract</param>
+        /// <param name="destinationPath">Destination path for extraction</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Number of files extracted</returns>
+        public async Task<int> ExtractDirectoryAsync(string directoryPath, string destinationPath, CancellationToken cancellationToken = default)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(GGPKService));
+
+            if (!IsLoaded)
+                throw new InvalidOperationException("No GGPK file is currently loaded");
+
+            return await _operationQueue.EnqueueOperationAsync(
+                (ct) =>
+                {
+                    try
+                    {
+                        System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Extracting directory '{directoryPath}' to '{destinationPath}'");
+
+                        // Handle bundled GGPK files differently
+                        if (_ggpkWrapper.IsBundled && _indexDecompressor.HasIndexFile())
+                        {
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Using bundle index extraction for '{directoryPath}'");
+                            
+                            // For bundled GGPK files, we need to extract files individually using the bundle system
+                            // Get all files recursively from the directory using the index decompressor directly
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Getting all files in directory '{directoryPath}'");
+                            
+                            var allFiles = GetAllFilesInDirectoryFromIndex(directoryPath);
+                            
+                            if (!allFiles.Any())
+                            {
+                                System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: No files found in directory '{directoryPath}'");
+                                return 0;
+                            }
+
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Found {allFiles.Count} files to extract from bundle index");
+            
+                            // Log to JSON for debugging
+                            _enhancedLogging?.LogGGPKOperation("DirectoryExtraction_FileCount", directoryPath, new Dictionary<string, object>
+                            {
+                                ["FilesFound"] = allFiles.Count,
+                                ["DirectoryPath"] = directoryPath
+                            });
+
+                            // Create destination directory
+                            Directory.CreateDirectory(destinationPath);
+
+                            var extractedCount = 0;
+                            foreach (var fileInfo in allFiles)
+                            {
+                                try
+                                {
+                                    // Calculate relative path from the directory being extracted
+                                    var relativePath = GetRelativePathFromDirectory(directoryPath, fileInfo.FullPath);
+                                    var destFilePath = Path.Combine(destinationPath, relativePath);
+
+                                    // Create subdirectories as needed
+                                    var destDir = Path.GetDirectoryName(destFilePath);
+                                    if (!string.IsNullOrEmpty(destDir))
+                                    {
+                                        Directory.CreateDirectory(destDir);
+                                    }
+
+                                    // Read file data and write to destination
+                                    var fileData = ReadFileInternal(fileInfo.FullPath);
+                                    File.WriteAllBytes(destFilePath, fileData);
+                                    
+                                    extractedCount++;
+                                    System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Extracted file {extractedCount}/{allFiles.Count}: {fileInfo.FullPath}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Failed to extract file '{fileInfo.FullPath}': {ex.Message}");
+                                    // Continue with other files
+                                }
+                            }
+
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Successfully extracted {extractedCount} files from bundle index");
+                            return extractedCount;
+                        }
+                        else
+                        {
+                            // For traditional GGPK files, use the original method
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Using traditional GGPK extraction for '{directoryPath}'");
+                            
+                            var directory = _ggpkWrapper.FindDirectory(directoryPath);
+                            if (directory == null)
+                            {
+                                // Try without trailing slash
+                                if (directoryPath.EndsWith("/"))
+                                {
+                                    directory = _ggpkWrapper.FindDirectory(directoryPath.TrimEnd('/'));
+                                }
+                            }
+
+                            if (directory == null)
+                            {
+                                throw new DirectoryNotFoundException($"Directory not found: {directoryPath}");
+                            }
+
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Found directory '{directory.Name}', calling GGPK.Extract");
+
+                            // Use LibGGPK3's built-in directory extraction
+                            var extractedCount = _ggpkWrapper.ExtractDirectory(directory, destinationPath);
+
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Successfully extracted {extractedCount} files");
+                            return extractedCount;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Error - {ex.Message}");
+                        _uiThreadMarshaling.PostToUIThread(() => OnErrorOccurred(new Models.ErrorEventArgs(ex, false, $"Extracting directory: {directoryPath}")));
+                        throw;
+                    }
+                },
+                "ExtractDirectory",
+                OperationPriority.Normal,
+                cancellationToken
+            );
+        }
+
+        /// <summary>
+        /// Gets all files in a directory recursively from the bundle index
+        /// </summary>
+        /// <param name="directoryPath">Directory path to search</param>
+        /// <returns>List of file information</returns>
+        private List<TreeNodeInfo> GetAllFilesInDirectoryFromIndex(string directoryPath)
+        {
+            var result = new List<TreeNodeInfo>();
+            var pathToSearch = directoryPath.TrimEnd('/');
+            
+            System.Diagnostics.Debug.WriteLine($"GetAllFilesInDirectoryFromIndex: Searching for files in '{pathToSearch}'");
+            
+            // Get nodes from the specific directory path
+            // This returns the direct children of the directory
+            var directoryNodes = _indexDecompressor.GetIndexNodesForPath(pathToSearch);
+            
+            System.Diagnostics.Debug.WriteLine($"GetAllFilesInDirectoryFromIndex: Found {directoryNodes.Count()} nodes in directory '{pathToSearch}'");
+            
+            // Log to JSON for debugging
+            _enhancedLogging?.LogGGPKOperation("DirectorySearch_NodeCount", pathToSearch, new Dictionary<string, object>
+            {
+                ["NodesFound"] = directoryNodes.Count(),
+                ["SearchPath"] = pathToSearch
+            });
+            
+            foreach (var node in directoryNodes)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetAllFilesInDirectoryFromIndex: Node - Path: '{node.FullPath}', Type: {node.Type}, Name: '{node.Name}'");
+                
+                // Log each node to JSON
+                _enhancedLogging?.LogGGPKOperation("DirectorySearch_NodeFound", node.FullPath, new Dictionary<string, object>
+                {
+                    ["NodeName"] = node.Name,
+                    ["NodeType"] = node.Type.ToString(),
+                    ["NodePath"] = node.FullPath,
+                    ["SearchPath"] = pathToSearch
+                });
+                
+                if (node.Type == NodeType.File || node.Type == NodeType.BundleFile)
+                {
+                    result.Add(node);
+                    System.Diagnostics.Debug.WriteLine($"GetAllFilesInDirectoryFromIndex: Added file: {node.FullPath}");
+                }
+                else if (node.Type == NodeType.Directory)
+                {
+                    // Recursively get files from subdirectories
+                    // Make sure to use the full path for recursion
+                    var subDirFiles = GetAllFilesInDirectoryFromIndex(node.FullPath);
+                    result.AddRange(subDirFiles);
+                    System.Diagnostics.Debug.WriteLine($"GetAllFilesInDirectoryFromIndex: Added {subDirFiles.Count} files from subdirectory: {node.FullPath}");
+                }
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"GetAllFilesInDirectoryFromIndex: Total found {result.Count} files in directory '{pathToSearch}'");
+            return result;
+        }
+
+        /// <summary>
+        /// Internal method to read file data synchronously for use within operation queue
+        /// </summary>
+        /// <param name="path">Path to the file</param>
+        /// <returns>File content as byte array</returns>
+        private byte[] ReadFileInternal(string path)
+        {
+            // This is called from within the operation queue, so we can't use the queue again
+            // Instead, directly access the wrapper
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"ReadFileInternal: Reading file '{path}'");
+                
+                // For bundled GGPK files, try bundle index first
+                if (_ggpkWrapper.IsBundled && _indexDecompressor.HasIndexFile())
+                {
+                    System.Diagnostics.Debug.WriteLine($"ReadFileInternal: Using bundled GGPK for file '{path}'");
+                    
+                    var bundledGGPK = _ggpkWrapper.GetBundledGGPK();
+                    if (bundledGGPK?.Index != null)
+                    {
+                        // Try to find the file in the bundle index
+                        if (bundledGGPK.Index.TryFindNode(path, out var node) && node is LibBundle3.Nodes.IFileNode fileNode)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"ReadFileInternal: Found file in bundle index: {fileNode.Name}");
+                            
+                            // Read the file data from the bundle
+                            var fileData = fileNode.Record.Read();
+                            System.Diagnostics.Debug.WriteLine($"ReadFileInternal: Successfully read {fileData.Length} bytes from bundle file");
+                            return fileData.ToArray();
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"ReadFileInternal: File not found in bundle index: {path}");
+                        }
+                    }
+                }
+                
+                // Fallback to regular GGPK file reading
+                var file = _ggpkWrapper.FindFile(path);
+                if (file != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ReadFileInternal: Reading from GGPK structure: {file.Name}");
+                    return _ggpkWrapper.ReadFile(file);
+                }
+                
+                throw new FileNotFoundException($"File not found: {path}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ReadFileInternal: Error reading file '{path}': {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Gets the relative path of a file from a directory
+        /// </summary>
+        /// <param name="directoryPath">Base directory path</param>
+        /// <param name="filePath">Full file path</param>
+        /// <returns>Relative path</returns>
+        private string GetRelativePathFromDirectory(string directoryPath, string filePath)
+        {
+            var dirPath = directoryPath.TrimEnd('/').Replace('\\', '/');
+            var fullPath = filePath.Replace('\\', '/').TrimStart('/');
+            
+            if (string.IsNullOrEmpty(dirPath))
+            {
+                return fullPath;
+            }
+            
+            if (fullPath.StartsWith(dirPath + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                return fullPath.Substring(dirPath.Length + 1);
+            }
+            
+            return Path.GetFileName(fullPath);
         }
 
         /// <summary>

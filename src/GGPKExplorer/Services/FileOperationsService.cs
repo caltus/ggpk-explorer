@@ -53,21 +53,58 @@ namespace GGPKExplorer.Services
                 if (!ValidateDestinationPath(destinationPath))
                     throw new ArgumentException("Invalid destination path", nameof(destinationPath));
 
-                // Check if the source path is a directory
-                var nodeInfo = await _ggpkService.GetNodeInfoAsync(sourcePath, cancellationToken);
-                if (nodeInfo == null)
+                progress?.Report(new ProgressInfo
                 {
-                    throw new FileNotFoundException($"Path not found: {sourcePath}");
-                }
+                    Percentage = 0,
+                    Operation = "Extracting file",
+                    CurrentFile = sourcePath,
+                    Status = "Validating path..."
+                });
 
-                if (nodeInfo.Type == NodeType.Directory)
+                // Check if the source path is a directory BEFORE attempting to read
+                System.Diagnostics.Debug.WriteLine($"ExtractFileAsync: Validating path '{sourcePath}'");
+                
+                try
                 {
-                    throw new InvalidOperationException($"Cannot extract directory '{sourcePath}' as a file. Use ExtractDirectoryAsync() method or select 'Extract Directory' option in the UI.");
+                    var nodeInfo = await _ggpkService.GetNodeInfoAsync(sourcePath, cancellationToken);
+                    if (nodeInfo == null)
+                    {
+                        // Try without trailing slash if path ends with /
+                        if (sourcePath.EndsWith("/") && sourcePath.Length > 1)
+                        {
+                            var pathWithoutSlash = sourcePath.TrimEnd('/');
+                            System.Diagnostics.Debug.WriteLine($"ExtractFileAsync: Trying path without trailing slash '{pathWithoutSlash}'");
+                            nodeInfo = await _ggpkService.GetNodeInfoAsync(pathWithoutSlash, cancellationToken);
+                        }
+                        
+                        if (nodeInfo == null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"ExtractFileAsync: Path not found '{sourcePath}'");
+                            throw new FileNotFoundException($"Path not found: {sourcePath}");
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"ExtractFileAsync: Found node '{nodeInfo.Name}' with type '{nodeInfo.Type}'");
+                    if (nodeInfo.Type == NodeType.Directory)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"ExtractFileAsync: Rejecting directory extraction for '{sourcePath}'");
+                        throw new InvalidOperationException($"Cannot extract directory '{sourcePath}' as a file. Use ExtractDirectoryAsync() method or select 'Extract Directory' option in the UI.");
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    // Re-throw our directory validation error
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ExtractFileAsync: Error during validation: {ex.Message}");
+                    throw new InvalidOperationException($"Error validating path '{sourcePath}': {ex.Message}", ex);
                 }
 
                 progress?.Report(new ProgressInfo
                 {
-                    Percentage = 0,
+                    Percentage = 10,
                     Operation = "Extracting file",
                     CurrentFile = sourcePath,
                     Status = "Reading file data..."
@@ -180,59 +217,40 @@ namespace GGPKExplorer.Services
                 if (!ValidateDestinationPath(destinationPath))
                     throw new ArgumentException("Invalid destination path", nameof(destinationPath));
 
-                // Get all files in the directory recursively
-                var allFiles = await GetAllFilesRecursivelyAsync(sourcePath, cancellationToken);
-                
-                if (!allFiles.Any())
-                    return true; // Empty directory, nothing to extract
-
-                var totalFiles = allFiles.Count;
-                var processedFiles = 0;
-                var totalBytes = allFiles.Sum(f => f.Size);
-                var processedBytes = 0L;
-
-                foreach (var file in allFiles)
+                progress?.Report(new ProgressInfo
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    Percentage = 0,
+                    Operation = "Extracting directory",
+                    CurrentFile = sourcePath,
+                    Status = "Starting directory extraction..."
+                });
 
-                    try
-                    {
-                        var relativePath = GetRelativePath(sourcePath, file.FullPath);
-                        var destFilePath = Path.Combine(destinationPath, relativePath);
-
-                        progress?.Report(new ProgressInfo
-                        {
-                            Percentage = (double)processedFiles / totalFiles * 100,
-                            Operation = "Extracting directory",
-                            CurrentFile = file.FullPath,
-                            FilesProcessed = processedFiles,
-                            TotalFiles = totalFiles,
-                            BytesProcessed = processedBytes,
-                            TotalBytes = totalBytes,
-                            Status = $"Extracting {file.Name}..."
-                        });
-
-                        await ExtractFileAsync(file.FullPath, destFilePath, null, cancellationToken);
-                        
-                        processedFiles++;
-                        processedBytes += file.Size;
-                    }
-                    catch (Exception ex)
-                    {
-                        OnErrorOccurred(ex, true, $"Failed to extract file in directory: {file.FullPath}");
-                        // Continue with other files
-                    }
-                }
+                // Use LibGGPK3's built-in directory extraction method
+                // This is much more efficient than extracting files one by one
+                var extractedCount = await _ggpkService.ExtractDirectoryAsync(sourcePath, destinationPath, cancellationToken);
 
                 progress?.Report(new ProgressInfo
                 {
                     Percentage = 100,
                     Operation = "Extracting directory",
-                    FilesProcessed = processedFiles,
-                    TotalFiles = totalFiles,
-                    BytesProcessed = processedBytes,
-                    TotalBytes = totalBytes,
-                    Status = "Complete"
+                    CurrentFile = sourcePath,
+                    FilesProcessed = extractedCount,
+                    TotalFiles = extractedCount,
+                    Status = $"Extracted {extractedCount} files"
+                });
+
+                stopwatch.Stop();
+
+                _jsonLogger.LogExtractionOperation("ExtractDirectory_Complete", sourcePath, destinationPath, 0, stopwatch.Elapsed, new Dictionary<string, object>
+                {
+                    ["CorrelationId"] = correlationId,
+                    ["ExtractedFiles"] = extractedCount
+                });
+
+                _jsonLogger.EndOperationScope(correlationId, true, new Dictionary<string, object>
+                {
+                    ["ExtractedFiles"] = extractedCount,
+                    ["Duration"] = stopwatch.Elapsed.TotalMilliseconds
                 });
 
                 return true;
@@ -285,10 +303,23 @@ namespace GGPKExplorer.Services
                         });
 
                         System.Diagnostics.Debug.WriteLine($"Looking up node info for path: '{sourcePath}'");
+                        
+                        // Log the node lookup for debugging
+                        _jsonLogger.LogFileOperation("NodeLookup_Start", sourcePath, context: new Dictionary<string, object>
+                        {
+                            ["Operation"] = "ExtractMultiple_NodeLookup"
+                        });
+                        
                         var nodeInfo = await _ggpkService.GetNodeInfoAsync(sourcePath, cancellationToken);
                         if (nodeInfo == null)
                         {
                             System.Diagnostics.Debug.WriteLine($"Node not found for path: '{sourcePath}'");
+                            
+                            _jsonLogger.LogFileOperation("NodeLookup_Failed", sourcePath, context: new Dictionary<string, object>
+                            {
+                                ["Error"] = "Node not found"
+                            });
+                            
                             errors.Add(new ExtractionError
                             {
                                 FilePath = sourcePath,
@@ -297,7 +328,15 @@ namespace GGPKExplorer.Services
                             results.FailedFiles++;
                             continue;
                         }
+                        
                         System.Diagnostics.Debug.WriteLine($"Found node: {nodeInfo.Name} (Type: {nodeInfo.Type})");
+                        
+                        _jsonLogger.LogFileOperation("NodeLookup_Success", sourcePath, context: new Dictionary<string, object>
+                        {
+                            ["NodeName"] = nodeInfo.Name,
+                            ["NodeType"] = nodeInfo.Type.ToString(),
+                            ["NodeSize"] = nodeInfo.Size
+                        });
 
                         // Preserve directory structure by using the relative path from root
                         var relativePath = GetRelativePathFromRoot(sourcePath);
@@ -306,10 +345,23 @@ namespace GGPKExplorer.Services
                         bool success;
                         if (nodeInfo.Type == NodeType.Directory)
                         {
+                            _jsonLogger.LogFileOperation("ExtractMethod_Directory", sourcePath, context: new Dictionary<string, object>
+                            {
+                                ["Method"] = "ExtractDirectoryAsync",
+                                ["DestinationPath"] = itemDestPath
+                            });
+                            
                             success = await ExtractDirectoryAsync(sourcePath, itemDestPath, null, cancellationToken);
                         }
                         else
                         {
+                            _jsonLogger.LogFileOperation("ExtractMethod_File", sourcePath, context: new Dictionary<string, object>
+                            {
+                                ["Method"] = "ExtractFileAsync",
+                                ["DestinationPath"] = itemDestPath,
+                                ["NodeType"] = nodeInfo.Type.ToString()
+                            });
+                            
                             success = await ExtractFileAsync(sourcePath, itemDestPath, null, cancellationToken);
                         }
 

@@ -568,6 +568,43 @@ namespace GGPKExplorer.Wrappers
         }
 
         /// <summary>
+        /// Extracts a directory and all its contents to the specified destination path
+        /// Reference: VisualGGPK3 example - uses GGPK.Extract(DirectoryRecord, path)
+        /// </summary>
+        /// <param name="directory">Directory record to extract</param>
+        /// <param name="destinationPath">Destination path for extraction</param>
+        /// <returns>Number of files extracted</returns>
+        public int ExtractDirectory(DirectoryRecord directory, string destinationPath)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(GGPKWrapper));
+
+            lock (_lockObject)
+            {
+                try
+                {
+                    _logger?.LogDebug("Extracting directory {DirectoryName} to {DestinationPath}", 
+                        directory.Name, destinationPath);
+
+                    // Use LibGGPK3's built-in directory extraction method
+                    // This is the same method used in VisualGGPK3 example
+                    var extractedCount = GGPK.Extract(directory, destinationPath);
+
+                    _logger?.LogDebug("Successfully extracted {Count} files from directory {DirectoryName}", 
+                        extractedCount, directory.Name);
+
+                    return extractedCount;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to extract directory {DirectoryName} to {DestinationPath}", 
+                        directory.Name, destinationPath);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
         /// Gets the bundled GGPK instance if available
         /// </summary>
         /// <returns>BundledGGPK instance or null if not bundled</returns>

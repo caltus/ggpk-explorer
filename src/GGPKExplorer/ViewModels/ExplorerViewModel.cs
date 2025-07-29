@@ -57,6 +57,15 @@ namespace GGPKExplorer.ViewModels
         [ObservableProperty]
         private bool _useRegexSearch = false;
 
+        [ObservableProperty]
+        private double _progressValue = 0.0;
+
+        [ObservableProperty]
+        private bool _isProgressVisible = false;
+
+        [ObservableProperty]
+        private string _progressText = string.Empty;
+
         public ExplorerViewModel(
             IGGPKService ggpkService, 
             IFileOperationsService fileOperationsService,
