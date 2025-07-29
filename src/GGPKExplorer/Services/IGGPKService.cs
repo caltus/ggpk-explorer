@@ -89,9 +89,10 @@ namespace GGPKExplorer.Services
         /// </summary>
         /// <param name="directoryPath">Path to the directory to extract</param>
         /// <param name="destinationPath">Destination path for extraction</param>
+        /// <param name="progress">Progress reporting interface</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Number of files extracted</returns>
-        Task<int> ExtractDirectoryAsync(string directoryPath, string destinationPath, CancellationToken cancellationToken = default);
+        Task<int> ExtractDirectoryAsync(string directoryPath, string destinationPath, IProgress<ProgressInfo>? progress = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets detailed properties of a file or directory

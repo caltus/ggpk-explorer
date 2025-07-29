@@ -225,19 +225,9 @@ namespace GGPKExplorer.Services
                     Status = "Starting directory extraction..."
                 });
 
-                // Use LibGGPK3's built-in directory extraction method
+                // Use LibGGPK3's built-in directory extraction method with progress reporting
                 // This is much more efficient than extracting files one by one
-                var extractedCount = await _ggpkService.ExtractDirectoryAsync(sourcePath, destinationPath, cancellationToken);
-
-                progress?.Report(new ProgressInfo
-                {
-                    Percentage = 100,
-                    Operation = "Extracting directory",
-                    CurrentFile = sourcePath,
-                    FilesProcessed = extractedCount,
-                    TotalFiles = extractedCount,
-                    Status = $"Extracted {extractedCount} files"
-                });
+                var extractedCount = await _ggpkService.ExtractDirectoryAsync(sourcePath, destinationPath, progress, cancellationToken);
 
                 stopwatch.Stop();
 
@@ -343,6 +333,8 @@ namespace GGPKExplorer.Services
                         var itemDestPath = Path.Combine(destinationPath, relativePath);
 
                         bool success;
+                        int extractedFileCount = 0;
+                        
                         if (nodeInfo.Type == NodeType.Directory)
                         {
                             _jsonLogger.LogFileOperation("ExtractMethod_Directory", sourcePath, context: new Dictionary<string, object>
@@ -351,7 +343,9 @@ namespace GGPKExplorer.Services
                                 ["DestinationPath"] = itemDestPath
                             });
                             
-                            success = await ExtractDirectoryAsync(sourcePath, itemDestPath, null, cancellationToken);
+                            // Call the service directly to get the actual file count
+                            extractedFileCount = await _ggpkService.ExtractDirectoryAsync(sourcePath, itemDestPath, progress, cancellationToken);
+                            success = extractedFileCount > 0;
                         }
                         else
                         {
@@ -363,12 +357,15 @@ namespace GGPKExplorer.Services
                             });
                             
                             success = await ExtractFileAsync(sourcePath, itemDestPath, null, cancellationToken);
+                            extractedFileCount = success ? 1 : 0;
                         }
 
                         if (success)
                         {
-                            results.SuccessfulFiles++;
+                            results.SuccessfulFiles += extractedFileCount; // Use actual file count, not just 1
                             results.TotalBytesExtracted += nodeInfo.Size;
+                            
+                            System.Diagnostics.Debug.WriteLine($"ExtractMultipleAsync: Extracted {extractedFileCount} files from {(nodeInfo.Type == NodeType.Directory ? "directory" : "file")} '{sourcePath}'");
                         }
                         else
                         {

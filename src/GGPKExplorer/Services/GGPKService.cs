@@ -817,9 +817,10 @@ namespace GGPKExplorer.Services
         /// </summary>
         /// <param name="directoryPath">Path to the directory to extract</param>
         /// <param name="destinationPath">Destination path for extraction</param>
+        /// <param name="progress">Progress reporting interface</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Number of files extracted</returns>
-        public async Task<int> ExtractDirectoryAsync(string directoryPath, string destinationPath, CancellationToken cancellationToken = default)
+        public async Task<int> ExtractDirectoryAsync(string directoryPath, string destinationPath, IProgress<ProgressInfo>? progress = null, CancellationToken cancellationToken = default)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(GGPKService));
@@ -864,6 +865,22 @@ namespace GGPKExplorer.Services
                             Directory.CreateDirectory(destinationPath);
 
                             var extractedCount = 0;
+                            var lastProgressReport = 0;
+                            const int progressBatchSize = 5; // Report progress every 5 files or 10% progress
+                            
+                            // Report initial progress
+                            System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Starting extraction of {allFiles.Count} files, progress reporter: {(progress != null ? "Available" : "NULL")}");
+                            
+                            progress?.Report(new ProgressInfo
+                            {
+                                Percentage = 0,
+                                Operation = "Extracting directory",
+                                CurrentFile = allFiles.FirstOrDefault()?.FullPath,
+                                FilesProcessed = 0,
+                                TotalFiles = allFiles.Count,
+                                Status = $"Starting extraction of {allFiles.Count} files..."
+                            });
+
                             foreach (var fileInfo in allFiles)
                             {
                                 try
@@ -884,6 +901,30 @@ namespace GGPKExplorer.Services
                                     File.WriteAllBytes(destFilePath, fileData);
                                     
                                     extractedCount++;
+                                    
+                                    // Report progress in batches or at significant milestones
+                                    var shouldReportProgress = 
+                                        extractedCount - lastProgressReport >= progressBatchSize || // Every N files
+                                        extractedCount % Math.Max(1, allFiles.Count / 10) == 0 || // Every 10% of files
+                                        extractedCount == allFiles.Count; // Final file
+                                    
+                                    if (shouldReportProgress)
+                                    {
+                                        var percentage = (double)extractedCount / allFiles.Count * 100;
+                                        progress?.Report(new ProgressInfo
+                                        {
+                                            Percentage = percentage,
+                                            Operation = "Extracting directory",
+                                            CurrentFile = fileInfo.FullPath,
+                                            FilesProcessed = extractedCount,
+                                            TotalFiles = allFiles.Count,
+                                            Status = $"Extracting: {Path.GetFileName(fileInfo.FullPath)}"
+                                        });
+                                        
+                                        lastProgressReport = extractedCount;
+                                        System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Progress update - {extractedCount}/{allFiles.Count} files ({percentage:F1}%)");
+                                    }
+                                    
                                     System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Extracted file {extractedCount}/{allFiles.Count}: {fileInfo.FullPath}");
                                 }
                                 catch (Exception ex)
@@ -892,6 +933,17 @@ namespace GGPKExplorer.Services
                                     // Continue with other files
                                 }
                             }
+
+                            // Report final completion
+                            progress?.Report(new ProgressInfo
+                            {
+                                Percentage = 100,
+                                Operation = "Extracting directory",
+                                CurrentFile = null,
+                                FilesProcessed = extractedCount,
+                                TotalFiles = allFiles.Count,
+                                Status = "Extraction complete"
+                            });
 
                             System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Successfully extracted {extractedCount} files from bundle index");
                             return extractedCount;
@@ -918,8 +970,30 @@ namespace GGPKExplorer.Services
 
                             System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Found directory '{directory.Name}', calling GGPK.Extract");
 
+                            // Report initial progress for traditional GGPK
+                            progress?.Report(new ProgressInfo
+                            {
+                                Percentage = 0,
+                                Operation = "Extracting directory",
+                                CurrentFile = directoryPath,
+                                FilesProcessed = 0,
+                                TotalFiles = 0, // We don't know the count beforehand for traditional GGPK
+                                Status = "Extracting directory using LibGGPK3..."
+                            });
+
                             // Use LibGGPK3's built-in directory extraction
                             var extractedCount = _ggpkWrapper.ExtractDirectory(directory, destinationPath);
+
+                            // Report completion for traditional GGPK
+                            progress?.Report(new ProgressInfo
+                            {
+                                Percentage = 100,
+                                Operation = "Extracting directory",
+                                CurrentFile = null,
+                                FilesProcessed = extractedCount,
+                                TotalFiles = extractedCount,
+                                Status = "Extraction complete"
+                            });
 
                             System.Diagnostics.Debug.WriteLine($"GGPKService.ExtractDirectoryAsync: Successfully extracted {extractedCount} files");
                             return extractedCount;

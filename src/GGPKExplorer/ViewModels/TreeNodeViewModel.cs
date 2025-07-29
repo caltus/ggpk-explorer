@@ -291,6 +291,18 @@ namespace GGPKExplorer.ViewModels
                 {
                     var destinationPath = folderDialog.FolderName;
                     
+                    // Set initial status message
+                    var explorerViewModel = FindExplorerViewModel();
+                    if (explorerViewModel != null)
+                    {
+                        explorerViewModel.IsProgressVisible = true;
+                        explorerViewModel.ProgressValue = 0;
+                        explorerViewModel.ProgressText = "Preparing extraction...";
+                        explorerViewModel.StatusText = NodeInfo.Type == NodeType.Directory
+                            ? $"Preparing to extract folder '{NodeInfo.Name}'"
+                            : $"Preparing to extract file '{NodeInfo.Name}'";
+                    }
+                    
                     // Create progress reporter to update the UI
                     var progress = new Progress<Services.ProgressInfo>(progressInfo =>
                     {
@@ -300,8 +312,43 @@ namespace GGPKExplorer.ViewModels
                         {
                             explorerViewModel.IsProgressVisible = true;
                             explorerViewModel.ProgressValue = progressInfo.Percentage;
-                            explorerViewModel.ProgressText = progressInfo.Status ?? string.Empty;
-                            explorerViewModel.StatusText = $"Extracting {NodeInfo.Name}... {progressInfo.FilesProcessed}/{progressInfo.TotalFiles} files";
+                            
+                            // Enhanced progress text with current file info
+                            if (!string.IsNullOrEmpty(progressInfo.CurrentFile))
+                            {
+                                var currentFileName = Path.GetFileName(progressInfo.CurrentFile);
+                                explorerViewModel.ProgressText = $"Extracting: {currentFileName}";
+                            }
+                            else
+                            {
+                                explorerViewModel.ProgressText = progressInfo.Status ?? "Extracting...";
+                            }
+                            
+                            // Enhanced status text with detailed progress information
+                            var statusText = NodeInfo.Type == NodeType.Directory
+                                ? $"Extracting folder '{NodeInfo.Name}'"
+                                : $"Extracting file '{NodeInfo.Name}'";
+                            
+                            if (progressInfo.TotalFiles > 0)
+                            {
+                                statusText += $" - {progressInfo.FilesProcessed}/{progressInfo.TotalFiles} files";
+                                
+                                // Add percentage if available
+                                if (progressInfo.Percentage > 0)
+                                {
+                                    statusText += $" ({progressInfo.Percentage:F0}%)";
+                                }
+                                
+                                // Add bytes information if available
+                                if (progressInfo.TotalBytes > 0)
+                                {
+                                    var processedSize = FormatFileSize(progressInfo.BytesProcessed);
+                                    var totalSize = FormatFileSize(progressInfo.TotalBytes);
+                                    statusText += $" - {processedSize}/{totalSize}";
+                                }
+                            }
+                            
+                            explorerViewModel.StatusText = statusText;
                         }
                     });
                     
@@ -309,13 +356,26 @@ namespace GGPKExplorer.ViewModels
                     var sourcePaths = new[] { NodeInfo.FullPath };
                     var results = await _fileOperationsService.ExtractMultipleAsync(sourcePaths, destinationPath, progress);
                     
-                    // Hide progress when done
-                    var explorerViewModel = FindExplorerViewModel();
-                    if (explorerViewModel != null)
+                    // Update final status and hide progress when done
+                    var explorerVm = FindExplorerViewModel();
+                    if (explorerVm != null)
                     {
-                        explorerViewModel.IsProgressVisible = false;
-                        explorerViewModel.ProgressValue = 0;
-                        explorerViewModel.ProgressText = string.Empty;
+                        explorerVm.IsProgressVisible = false;
+                        explorerVm.ProgressValue = 100; // Show completion briefly
+                        explorerVm.ProgressText = "Extraction complete";
+                        
+                        // Brief delay to show completion, then hide
+                        _ = Task.Delay(1000).ContinueWith(_ =>
+                        {
+                            Application.Current?.Dispatcher.Invoke(() =>
+                            {
+                                if (explorerVm != null)
+                                {
+                                    explorerVm.ProgressValue = 0;
+                                    explorerVm.ProgressText = string.Empty;
+                                }
+                            });
+                        });
                     }
                     
                     bool success = results.IsSuccess;
@@ -323,16 +383,32 @@ namespace GGPKExplorer.ViewModels
 
                     if (success)
                     {
-                        // Update status text
-                        if (explorerViewModel != null)
+                        // Update status text with detailed success information
+                        if (explorerVm != null)
                         {
-                            explorerViewModel.StatusText = $"Successfully extracted {NodeInfo.Name} ({results.SuccessfulFiles} files)";
+                            var statusText = NodeInfo.Type == NodeType.Directory
+                                ? $"Successfully extracted folder '{NodeInfo.Name}' - {results.SuccessfulFiles} files"
+                                : $"Successfully extracted file '{NodeInfo.Name}'";
+                            
+                            if (results.TotalBytesExtracted > 0)
+                            {
+                                statusText += $" ({FormatFileSize(results.TotalBytesExtracted)})";
+                            }
+                            
+                            if (results.Duration.TotalSeconds > 0.1)
+                            {
+                                statusText += $" in {results.Duration.TotalSeconds:F1}s";
+                            }
+                            
+                            explorerVm.StatusText = statusText;
                         }
                         
                         // Show appropriate toast based on whether it's a file or directory
                         if (NodeInfo.Type == NodeType.Directory)
                         {
                             // For directories, show folder and file counts
+                            System.Diagnostics.Debug.WriteLine($"TreeNodeViewModel: Toast notification - SuccessfulFiles: {results.SuccessfulFiles}, TotalFiles: {results.TotalFiles}");
+                            
                             var message = results.SuccessfulFiles == 1 
                                 ? $"Extracted 1 file from folder '{NodeInfo.Name}'"
                                 : $"Extracted {results.SuccessfulFiles} files from folder '{NodeInfo.Name}'";
@@ -369,9 +445,18 @@ namespace GGPKExplorer.ViewModels
                     else if (results.IsPartialSuccess)
                     {
                         // Partial success - some files extracted, some failed
-                        if (explorerViewModel != null)
+                        if (explorerVm != null)
                         {
-                            explorerViewModel.StatusText = $"Partially extracted {NodeInfo.Name} ({results.SuccessfulFiles}/{results.TotalFiles} files)";
+                            var statusText = NodeInfo.Type == NodeType.Directory
+                                ? $"Partially extracted folder '{NodeInfo.Name}' - {results.SuccessfulFiles}/{results.TotalFiles} files succeeded"
+                                : $"Partially extracted '{NodeInfo.Name}' with errors";
+                            
+                            if (results.TotalBytesExtracted > 0)
+                            {
+                                statusText += $" ({FormatFileSize(results.TotalBytesExtracted)} extracted)";
+                            }
+                            
+                            explorerVm.StatusText = statusText;
                         }
                         
                         var message = NodeInfo.Type == NodeType.Directory
@@ -387,9 +472,13 @@ namespace GGPKExplorer.ViewModels
                             ? results.Errors[0].ErrorMessage
                             : "Unknown error occurred";
                             
-                        if (explorerViewModel != null)
+                        if (explorerVm != null)
                         {
-                            explorerViewModel.StatusText = $"Extraction failed: {NodeInfo.Name}";
+                            var statusText = NodeInfo.Type == NodeType.Directory
+                                ? $"Failed to extract folder '{NodeInfo.Name}': {errorMessage}"
+                                : $"Failed to extract file '{NodeInfo.Name}': {errorMessage}";
+                            
+                            explorerVm.StatusText = statusText;
                         }
                         
                         var message = NodeInfo.Type == NodeType.Directory
@@ -403,15 +492,20 @@ namespace GGPKExplorer.ViewModels
             catch (Exception ex)
             {
                 // Hide progress on error
-                var explorerViewModel = FindExplorerViewModel();
+                var explorerVmError = FindExplorerViewModel();
                 var mainViewModel = FindMainViewModel();
                 
-                if (explorerViewModel != null)
+                if (explorerVmError != null)
                 {
-                    explorerViewModel.IsProgressVisible = false;
-                    explorerViewModel.ProgressValue = 0;
-                    explorerViewModel.ProgressText = string.Empty;
-                    explorerViewModel.StatusText = $"Error extracting {NodeInfo.Name}";
+                    explorerVmError.IsProgressVisible = false;
+                    explorerVmError.ProgressValue = 0;
+                    explorerVmError.ProgressText = string.Empty;
+                    
+                    var statusText = NodeInfo.Type == NodeType.Directory
+                        ? $"Error extracting folder '{NodeInfo.Name}': {ex.Message}"
+                        : $"Error extracting file '{NodeInfo.Name}': {ex.Message}";
+                    
+                    explorerVmError.StatusText = statusText;
                 }
                 
                 var message = NodeInfo.Type == NodeType.Directory
