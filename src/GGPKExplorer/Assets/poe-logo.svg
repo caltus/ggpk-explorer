@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Path of Exile inspired logo - simplified black and white version -->
+  <g fill="currentColor">
+    <!-- Outer ring -->
+    <circle cx="16" cy="16" r="15" fill="none" stroke="currentColor" stroke-width="2"/>
+    
+    <!-- Inner geometric pattern inspired by PoE -->
+    <path d="M16 4 L24 12 L20 16 L24 20 L16 28 L8 20 L12 16 L8 12 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    
+    <!-- Center diamond -->
+    <path d="M16 10 L20 14 L16 18 L12 14 Z" fill="currentColor"/>
+    
+    <!-- Corner accents -->
+    <circle cx="16" cy="6" r="1.5" fill="currentColor"/>
+    <circle cx="26" cy="16" r="1.5" fill="currentColor"/>
+    <circle cx="16" cy="26" r="1.5" fill="currentColor"/>
+    <circle cx="6" cy="16" r="1.5" fill="currentColor"/>
+  </g>
+</svg>

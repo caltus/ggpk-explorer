@@ -8,7 +8,7 @@
                 xmlns:views="clr-namespace:GGPKExplorer.Views"
                 xmlns:converters="clr-namespace:GGPKExplorer.Converters"
                 mc:Ignorable="d"
-                Title="GGPK Explorer v1.0.0" 
+                Title="GGPK Explorer v1.0.0 - Official" 
                 Height="800" 
                 Width="1200"
                 MinHeight="600"
@@ -53,20 +53,52 @@
                     Background="Transparent"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" />
             
-            <!-- App Name -->
-            <TextBlock Grid.Column="0" 
-                       Text="GGPK Explorer v1.0.0"
-                       VerticalAlignment="Center"
-                       FontSize="14"
-                       FontWeight="Medium"
-                       Margin="0,0,16,0"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" />
+            <!-- App Name with Logo -->
+            <StackPanel Grid.Column="0" 
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="0,0,16,0"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                
+                <!-- Path of Exile Logo -->
+                <Viewbox Width="20" Height="20" Margin="0,0,8,0">
+                    <Canvas Width="32" Height="32">
+                        <!-- Outer ring -->
+                        <Ellipse Width="30" Height="30" 
+                                 Canvas.Left="1" Canvas.Top="1"
+                                 Fill="Transparent" 
+                                 Stroke="{DynamicResource TextFillColorSecondaryBrush}" 
+                                 StrokeThickness="2"/>
+                        
+                        <!-- Inner geometric pattern -->
+                        <Path Data="M16 4 L24 12 L20 16 L24 20 L16 28 L8 20 L12 16 L8 12 Z" 
+                              Fill="Transparent" 
+                              Stroke="{DynamicResource TextFillColorSecondaryBrush}" 
+                              StrokeThickness="1.5"/>
+                        
+                        <!-- Center diamond -->
+                        <Path Data="M16 10 L20 14 L16 18 L12 14 Z" 
+                              Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        
+                        <!-- Corner accents -->
+                        <Ellipse Width="3" Height="3" Canvas.Left="14.5" Canvas.Top="4.5" Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        <Ellipse Width="3" Height="3" Canvas.Left="24.5" Canvas.Top="14.5" Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        <Ellipse Width="3" Height="3" Canvas.Left="14.5" Canvas.Top="24.5" Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        <Ellipse Width="3" Height="3" Canvas.Left="4.5" Canvas.Top="14.5" Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    </Canvas>
+                </Viewbox>
+                
+                <TextBlock Text="GGPK Explorer v1.0.0 - Official"
+                           VerticalAlignment="Center"
+                           FontSize="14"
+                           FontWeight="Medium"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
             
             <!-- Menu -->
             <Menu x:Name="MenuBar" Grid.Column="1" Background="Transparent"
                   AutomationProperties.Name="Main Menu"
-                  AutomationProperties.HelpText="Application menu with file operations and settings"
+                  AutomationProperties.HelpText="Application menu with file operations"
                   KeyboardNavigation.TabNavigation="Continue"
                   TabIndex="0">
             <MenuItem Header="_File" Padding="8,4"
@@ -100,19 +132,6 @@
                             </Setter>
                         </Style>
                     </MenuItem.Style>
-                </MenuItem>
-                <Separator />
-                <MenuItem Header="_Logs..." 
-                          Command="{Binding ShowLogsCommand}">
-                    <MenuItem.Icon>
-                        <ui:SymbolIcon Symbol="Document24" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="_Settings..." 
-                          Command="{Binding ShowSettingsCommand}">
-                    <MenuItem.Icon>
-                        <ui:SymbolIcon Symbol="Settings24" />
-                    </MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="E_xit" 
@@ -245,12 +264,26 @@
 
         <!-- Main Content Area -->
         <Grid Grid.Row="1" Margin="12">
-            <!-- Explorer View (always visible) -->
-            <views:ExplorerView x:Name="MainExplorerView"
-                                DataContext="{Binding ExplorerViewModel}"
-                                TabIndex="1"
-                                AutomationProperties.Name="GGPK File Explorer"
-                                AutomationProperties.HelpText="Main file explorer interface with navigation tree and file list" />
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="60" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            
+            <!-- Sidebar -->
+            <views:SidebarView Grid.Column="0"
+                               DataContext="{Binding SidebarViewModel}"
+                               AutomationProperties.Name="Navigation Sidebar"
+                               AutomationProperties.HelpText="Navigation sidebar with quick access to different views" />
+            
+            <!-- Main Content -->
+            <Grid Grid.Column="1" Margin="12,0,0,0">
+                <!-- Explorer View (always visible) -->
+                <views:ExplorerView x:Name="MainExplorerView"
+                                    DataContext="{Binding ExplorerViewModel}"
+                                    TabIndex="1"
+                                    AutomationProperties.Name="GGPK File Explorer"
+                                    AutomationProperties.HelpText="Main file explorer interface with navigation tree and file list" />
+            </Grid>
         </Grid>
 
         <!-- Status Bar with Progress -->

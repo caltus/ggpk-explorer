@@ -31,6 +31,11 @@ public partial class MainViewModel : ObservableObject
     public ExplorerViewModel ExplorerViewModel { get; private set; }
 
     /// <summary>
+    /// Sidebar view model for navigation
+    /// </summary>
+    public SidebarViewModel SidebarViewModel { get; private set; }
+
+    /// <summary>
     /// Toast service for showing notifications
     /// </summary>
     public IToastService ToastService => _toastService;
@@ -51,6 +56,9 @@ public partial class MainViewModel : ObservableObject
         
         // Initialize explorer view model with proper services
         ExplorerViewModel = new ExplorerViewModel(ggpkService, fileOperationsService, settingsService, searchService);
+        
+        // Initialize sidebar view model with settings and logs commands
+        SidebarViewModel = new SidebarViewModel(ShowSettingsCommand, ShowLogsCommand);
         
         // Subscribe to explorer view model property changes for progress updates
         ExplorerViewModel.PropertyChanged += OnExplorerViewModelPropertyChanged;
