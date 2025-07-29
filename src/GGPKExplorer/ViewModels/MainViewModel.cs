@@ -30,6 +30,11 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public ExplorerViewModel ExplorerViewModel { get; private set; }
 
+    /// <summary>
+    /// Toast service for showing notifications
+    /// </summary>
+    public IToastService ToastService => _toastService;
+
     public MainViewModel(
         IContentDialogService contentDialogService,
         IGGPKService ggpkService,

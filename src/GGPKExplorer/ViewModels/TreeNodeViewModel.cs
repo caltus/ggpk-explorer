@@ -319,40 +319,84 @@ namespace GGPKExplorer.ViewModels
                     }
                     
                     bool success = results.IsSuccess;
+                    var mainViewModel = FindMainViewModel();
 
                     if (success)
                     {
-                        // Get the relative path for display
-                        var relativePath = GetRelativePathFromRoot(NodeInfo.FullPath);
-                        var fullDestinationPath = System.IO.Path.Combine(destinationPath, relativePath);
-                        
+                        // Update status text
                         if (explorerViewModel != null)
                         {
                             explorerViewModel.StatusText = $"Successfully extracted {NodeInfo.Name} ({results.SuccessfulFiles} files)";
                         }
                         
-                        MessageBox.Show(
-                            $"Successfully extracted {NodeInfo.Name} to:\n{fullDestinationPath}\n\nFiles extracted: {results.SuccessfulFiles}\nRelative path structure preserved.",
-                            "Extraction Complete",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
+                        // Show appropriate toast based on whether it's a file or directory
+                        if (NodeInfo.Type == NodeType.Directory)
+                        {
+                            // For directories, show folder and file counts
+                            var message = results.SuccessfulFiles == 1 
+                                ? $"Extracted 1 file from folder '{NodeInfo.Name}'"
+                                : $"Extracted {results.SuccessfulFiles} files from folder '{NodeInfo.Name}'";
+                            
+                            if (results.Duration.TotalSeconds > 1)
+                            {
+                                message += $" in {results.Duration.TotalSeconds:F1}s";
+                            }
+                            
+                            // Add destination info
+                            var destinationFolder = Path.GetFileName(destinationPath.TrimEnd(Path.DirectorySeparatorChar));
+                            message += $" to '{destinationFolder}'";
+                            
+                            mainViewModel?.ToastService?.ShowSuccess(message, "Folder Extracted");
+                        }
+                        else
+                        {
+                            // For individual files
+                            var fileSize = FormatFileSize(NodeInfo.Size);
+                            var message = $"Extracted file '{NodeInfo.Name}' ({fileSize})";
+                            
+                            if (results.Duration.TotalSeconds > 0.1)
+                            {
+                                message += $" in {results.Duration.TotalSeconds:F1}s";
+                            }
+                            
+                            // Add destination info
+                            var destinationFolder = Path.GetFileName(destinationPath.TrimEnd(Path.DirectorySeparatorChar));
+                            message += $" to '{destinationFolder}'";
+                            
+                            mainViewModel?.ToastService?.ShowSuccess(message, "File Extracted");
+                        }
+                    }
+                    else if (results.IsPartialSuccess)
+                    {
+                        // Partial success - some files extracted, some failed
+                        if (explorerViewModel != null)
+                        {
+                            explorerViewModel.StatusText = $"Partially extracted {NodeInfo.Name} ({results.SuccessfulFiles}/{results.TotalFiles} files)";
+                        }
+                        
+                        var message = NodeInfo.Type == NodeType.Directory
+                            ? $"Partially extracted folder '{NodeInfo.Name}': {results.SuccessfulFiles} succeeded, {results.FailedFiles} failed"
+                            : $"Failed to extract file '{NodeInfo.Name}': {results.Errors[0]?.ErrorMessage ?? "Unknown error"}";
+                            
+                        mainViewModel?.ToastService?.ShowWarning(message, "Partial Extraction");
                     }
                     else
                     {
+                        // Complete failure
                         var errorMessage = results.Errors.Length > 0 
-                            ? $"Failed to extract {NodeInfo.Name}: {results.Errors[0].ErrorMessage}"
-                            : $"Failed to extract {NodeInfo.Name}";
+                            ? results.Errors[0].ErrorMessage
+                            : "Unknown error occurred";
                             
                         if (explorerViewModel != null)
                         {
                             explorerViewModel.StatusText = $"Extraction failed: {NodeInfo.Name}";
                         }
+                        
+                        var message = NodeInfo.Type == NodeType.Directory
+                            ? $"Failed to extract folder '{NodeInfo.Name}': {errorMessage}"
+                            : $"Failed to extract file '{NodeInfo.Name}': {errorMessage}";
                             
-                        MessageBox.Show(
-                            errorMessage,
-                            "Extraction Error",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error);
+                        mainViewModel?.ToastService?.ShowError(message, "Extraction Failed");
                     }
                 }
             }
@@ -360,6 +404,8 @@ namespace GGPKExplorer.ViewModels
             {
                 // Hide progress on error
                 var explorerViewModel = FindExplorerViewModel();
+                var mainViewModel = FindMainViewModel();
+                
                 if (explorerViewModel != null)
                 {
                     explorerViewModel.IsProgressVisible = false;
@@ -368,11 +414,11 @@ namespace GGPKExplorer.ViewModels
                     explorerViewModel.StatusText = $"Error extracting {NodeInfo.Name}";
                 }
                 
-                MessageBox.Show(
-                    $"Error extracting {NodeInfo.Name}: {ex.Message}",
-                    "Extraction Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                var message = NodeInfo.Type == NodeType.Directory
+                    ? $"Error extracting folder '{NodeInfo.Name}': {ex.Message}"
+                    : $"Error extracting file '{NodeInfo.Name}': {ex.Message}";
+                    
+                mainViewModel?.ToastService?.ShowError(message, "Extraction Error");
             }
         }
 
@@ -404,11 +450,11 @@ namespace GGPKExplorer.ViewModels
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error showing properties for {NodeInfo.FullPath}: {ex.Message}");
-                MessageBox.Show(
-                    $"Error displaying properties: {ex.Message}",
-                    "Properties Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                
+                var mainViewModel = FindMainViewModel();
+                mainViewModel?.ToastService?.ShowError(
+                    $"Error displaying properties for '{NodeInfo.Name}': {ex.Message}",
+                    "Properties Error");
             }
             
             return Task.CompletedTask;
@@ -465,6 +511,24 @@ namespace GGPKExplorer.ViewModels
                 {
                     return mainViewModel.ExplorerViewModel;
                 }
+            }
+            catch
+            {
+                // Ignore errors in finding the view model
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Finds the MainViewModel to access services like toast notifications
+        /// </summary>
+        private MainViewModel? FindMainViewModel()
+        {
+            try
+            {
+                var mainWindow = Application.Current?.MainWindow;
+                return mainWindow?.DataContext as MainViewModel;
             }
             catch
             {
