@@ -53,6 +53,18 @@ namespace GGPKExplorer.Services
                 if (!ValidateDestinationPath(destinationPath))
                     throw new ArgumentException("Invalid destination path", nameof(destinationPath));
 
+                // Check if the source path is a directory
+                var nodeInfo = await _ggpkService.GetNodeInfoAsync(sourcePath, cancellationToken);
+                if (nodeInfo == null)
+                {
+                    throw new FileNotFoundException($"Path not found: {sourcePath}");
+                }
+
+                if (nodeInfo.Type == NodeType.Directory)
+                {
+                    throw new InvalidOperationException($"Cannot extract directory '{sourcePath}' as a file. Use ExtractDirectoryAsync() method or select 'Extract Directory' option in the UI.");
+                }
+
                 progress?.Report(new ProgressInfo
                 {
                     Percentage = 0,
